@@ -243,6 +243,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
           <label><input type="checkbox" id="chkView"> 조회 전용 모드</label>
         </div>
       </div>
+      <button class="icon-btn" id="rcptBell" style="display:none;color:#ffd166;border-color:#ffd166" title="ESG에 들어온 소재 입고 중 아직 여기 등록 안 된 코일 · 누르면 가져오기">🔔 <span id="rcptBellTxt">소재 입고</span></button>
       <button class="icon-btn" id="btnXlMove" title="기존 엑셀(재고상황 · 전공정이동표) 파일을 읽어 이 달 기록을 업데이트">📗 <span>엑셀 업데이트</span></button><input type="file" id="fileXlMove" accept=".xlsx,.xlsm,.xls" style="display:none">
     </div>
   </header>
@@ -250,7 +251,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 4.2</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 4.3</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -593,7 +594,7 @@ function renderBoard(){const st=DB.stock();const heat=DB.stockVendor(P.HEAT),sur
   const ymB=boardYm();const R=boardRange();const mon=R.isMonth?`${+ymB.slice(5)}월`:R.label;const inR=d=>d>=R.from&&d<=R.to;const mats=DB.matStock();const rem=DB.orderRem();
   const shipM={};for(const m of DB.d.moves)if(m.to_proc===P.SHIP&&inR(m.date)){const k=m.pn+"|"+m.prod;shipM[k]=(shipM[k]||0)+m.qty}
   const E=(src,tip)=>`<button type="button" class="rc eb" data-e="${src}" title="${tip}">E</button>`;
-  const cols=[["g5","소재 (기종)",["kg","환산 세트"]],["g0","태진 PRESS (기종 세트)",["INNER","OUTER"],E("close","ESG 생산마감 가져오기 (전 기종)")],["g1",`${HEAT_VENDOR} 열처리`,["INNER","OUTER"]],["g2","태진 사내대기",["INNER","OUTER"]],...SURF_VENDORS.map(v=>["g3",`${v} 표면처리`,["INNER","OUTER"]]),["g4","태진 검사대기",["INNER","OUTER"],E("sbc","SBC 검사대기·검사완료 가져오기 (전 품번)")],["g6","출하대기 (검사완료·포장)",["INNER","OUTER"],E("sbc","SBC 검사대기·검사완료 가져오기 (전 품번)")],["g7",`출하 누계 (${mon})`,["INNER","OUTER"],E("ship","SBC 출하 확정 가져오기 (전 품번)")]];
+  const cols=[["g5","소재 (기종)",["kg","환산 세트"],RCPT.n?`<button type="button" class="rc eb" data-rcpt title="ESG에 들어온 소재 입고 ${RCPT.n}건 (${f1(RCPT.kg)} kg) 아직 미등록 · 누르면 가져오기">🔔 ${RCPT.n}</button>`:""],["g0","태진 PRESS (기종 세트)",["INNER","OUTER"],E("close","ESG 생산마감 가져오기 (전 기종)")],["g1",`${HEAT_VENDOR} 열처리`,["INNER","OUTER"]],["g2","태진 사내대기",["INNER","OUTER"]],...SURF_VENDORS.map(v=>["g3",`${v} 표면처리`,["INNER","OUTER"]]),["g4","태진 검사대기",["INNER","OUTER"],E("sbc","SBC 검사대기·검사완료 가져오기 (전 품번)")],["g6","출하대기 (검사완료·포장)",["INNER","OUTER"],E("sbc","SBC 검사대기·검사완료 가져오기 (전 품번)")],["g7",`출하 누계 (${mon})`,["INNER","OUTER"],E("ship","SBC 출하 확정 가져오기 (전 품번)")]];
   const showDone=$("#boardDone")?.checked;const plans={};const keyOpen={};for(const m of DB.models()){const pm=orderPlanModel(m,st);for(const pn in pm){plans[pn]=pm[pn];for(const x of pm[pn])keyOpen[x.key]=(keyOpen[x.key]||false)||x.state!=="done"}}
   const rkeys=Object.keys(keyOpen).filter(k=>showDone||keyOpen[k]).sort((a,b)=>{const[ya,ra]=a.split("|"),[yb,rb]=b.split("|");return ya.localeCompare(yb)||(+ra)-(+rb)});const closed=closedRounds();
   cols.push(["g9","주문 · 차수별 달성 (▮ 출하 · ▯ 출하대기 재고 · ▒ 소재로 가능 · 빈칸 부족)",[...rkeys.map(k=>{const isC=!!closed[k],open=keyOpen[k];return`<span class="rk${open?"":" off"}">${esc(roundLabel(k))}</span>`+(isC?`<button type="button" class="rc" data-reopen="${esc(k)}" title="종료 취소">재개</button>`:open?`<button type="button" class="rc" data-close="${esc(k)}" title="이 차수를 종료 (남은 잔량은 포기, 완료로 취급)">종료</button>`:`<span class="rc done">완료</span>`)}),`<button type="button" class="rc add" id="roundAdd" title="새 차수 주문 등록">＋ 차수 추가</button>`]]);
@@ -619,7 +620,8 @@ function renderBoard(){const st=DB.stock();const heat=DB.stockVendor(P.HEAT),sur
   w.querySelectorAll("button[data-close]").forEach(b=>b.onclick=async e=>{e.stopPropagation();if(!guard())return;const k=b.dataset.close;const os=DB.d.orders.filter(o=>roundKey(o)===k);const rem=os.reduce((a,o)=>a+Math.max(0,o.qty-DB.shipped(o.id)),0);if(!await confirmBox(`${roundLabel(k)} 를 종료할까요?\n주문 ${os.length}건 · 미출하 잔량 ${fmt(rem)} set 은 포기(완료 취급)되고 보드에서 숨겨집니다.\n[완료 차수 보기]에서 다시 열 수 있습니다.`))return;if(!await adminCheck("차수 종료"))return;setRoundClosed(k,true);toast(`${roundLabel(k)} 종료`)});
   w.querySelectorAll("button[data-reopen]").forEach(b=>b.onclick=async e=>{e.stopPropagation();if(!guard())return;const k=b.dataset.reopen;if(!await confirmBox(`${roundLabel(k)} 종료를 취소하고 다시 열까요?`))return;setRoundClosed(k,false);toast(`${roundLabel(k)} 재개`)});
   const ra=w.querySelector("#roundAdd");if(ra)ra.onclick=e=>{e.stopPropagation();boardPop("roundAdd",{})};
-  w.querySelectorAll("button[data-e]").forEach(b=>b.onclick=e=>{e.stopPropagation();esgPop(b.dataset.e)})}
+  w.querySelectorAll("button[data-e]").forEach(b=>b.onclick=e=>{e.stopPropagation();esgPop(b.dataset.e)});
+  const rb=w.querySelector("button[data-rcpt]");if(rb)rb.onclick=e=>{e.stopPropagation();openScreen("mat");setTimeout(()=>matReceiptPop(),150)}}
 /* 주문 차수별 달성 그래프: 출하분(▮) + 출하대기 재고로 채울 수 있는 분(▯, 앞 차수부터 배정) + 부족(빈칸)
    완료(출하 ≥ 수량)된 차수는 기본으로 숨김 → 다음 차수 관리에 집중. 상단 [완료 차수 보기]로 표시 */
 /* 차수 종료: 연월|차수 단위로 설정(closed_rounds)에 저장 → 서버 공용. 종료된 차수는 완료로 취급(재고·소재 배정 안 함) */
@@ -1081,7 +1083,7 @@ async function matReceiptPop(){if(!SB_ON)return warn("서버(Supabase) 연결이
   openDlg("ESG 소재 입고 가져오기","raw_material_receipt · 기간 선택 · 미등록만 체크 · 등록된 코일은 회색",`<div class="full note">불러오는 중…</div>`,async form=>{const rows=(form._rows||[]).filter(x=>selIds(form).includes(x.i));if(!rows.length)return"등록할 줄을 고르세요";if(rows.some(x=>!x.code))return"소재코드가 안 잡힌 줄이 있습니다 (기종/소재코드를 고르세요)";
     const tot={};for(const x of rows)tot[x.code]=(tot[x.code]||0)+x.kg;if(!await confirmBox(`소재 입고 ${rows.length}건을 등록할까요?\n`+Object.entries(tot).map(([c,k])=>`${c}: ${f1(k)} kg`).join("\n")))return null;if(!await adminCheck("ESG 소재 입고 등록"))return null;
     for(const x of rows)DB.d.materials.push({id:DB.nextId("materials"),date:x.receipt_date,mat_code:x.code,kg_in:x.kg,kg_out:0,memo:`${x.tag} ${x.item_code} ${x.heat_no||""} ${x.vendor_name||""}`.trim()});
-    changed();toast(`소재 입고 ${rows.length}건 등록`);return true});
+    changed();toast(`소재 입고 ${rows.length}건 등록`);setTimeout(checkNewReceipts,300);return true});
   const form=$("#dlgForm");const run=async()=>{form.innerHTML=rangeBar()+`<div class="full note">불러오는 중…</div>`;bind();try{const map=await rawCodeMap();const r=await fetch(`${SB_URL}/rest/v1/raw_material_receipt?select=id,item_code,material_type,thickness,width_mm,vendor_name,receipt_date,net_weight,heat_no,status,mes_receipt_no&receipt_date=gte.${from}&receipt_date=lte.${to}&status=eq.synced&order=receipt_date.desc,id.desc`,{headers:SB.hdr()});if(!r.ok)throw new Error(r.status);const all=await r.json();
       const done=new Set();for(const m of DB.d.materials){const t=(m.memo||"").match(/\[ESG입고 #\d+\]/);if(t)done.add(t[0])}
       const known=new Set(Object.keys(map));const rows=all.filter(x=>known.has(x.item_code)||/^(S55C|S70C|C67S)/i.test(x.item_code||"")).map(x=>({...x,i:x.id,tag:rawTag(x.id),kg:+x.net_weight||0,code:map[x.item_code]||"",done:done.has(rawTag(x.id))}));const todo=rows.filter(x=>!x.done);form._rows=todo;
@@ -1092,6 +1094,17 @@ async function matReceiptPop(){if(!SB_ON)return warn("서버(Supabase) 연결이
     catch(e){form.innerHTML=rangeBar()+`<div class="full note">⚠ 수집 실패: ${esc(e.message)}</div>`;bind()}};
   const bind=()=>{const go=()=>{from=validDate(form.rf.value)||from;to=validDate(form.rt.value)||to;if(from>to)[from,to]=[to,from];run()};form.querySelector("[data-reload]").onclick=go;form.querySelector("[data-month]").onclick=()=>{form.rf.value=mr.from;form.rt.value=mr.to;go()};form.rf.onkeydown=form.rt.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();go()}}};
   run()}
+/* 새 소재 입고 알림: ESG raw_material_receipt 에 들어왔는데 여기 등록 안 된 레이스웨이 코일 수. 시작 때·10분마다·창 다시 볼 때 확인 */
+const RCPT={n:0,kg:0,items:[],seen:0};
+async function checkNewReceipts(){if(!SB_ON)return;try{const codes=[...new Set(DB.parts().map(p=>DB.matCode(p.pn)))];const base=codes.map(c=>DB.matBaseline(c)).filter(Boolean).sort();const from=base.length?addDays(base[0],1):monthRange(today()).from;
+    const r=await fetch(`${SB_URL}/rest/v1/raw_material_receipt?select=id,item_code,receipt_date,net_weight&receipt_date=gte.${from}&status=eq.synced&order=id.desc&limit=500`,{headers:SB.hdr()});if(!r.ok)return;const all=await r.json();
+    const map=mapGet("map_raw");const done=new Set();for(const m of DB.d.materials){const t=(m.memo||"").match(/\[ESG입고 #\d+\]/);if(t)done.add(t[0])}
+    const rows=all.filter(x=>(map[x.item_code]||/^(S55C|S70C|C67S)/i.test(x.item_code||""))&&!done.has(rawTag(x.id)));
+    RCPT.n=rows.length;RCPT.kg=rows.reduce((a,x)=>a+(+x.net_weight||0),0);const by={};for(const x of rows)by[x.item_code]=(by[x.item_code]||0)+(+x.net_weight||0);RCPT.items=Object.entries(by);const maxId=rows.reduce((a,x)=>Math.max(a,x.id),0);
+    const b=$("#rcptBell");if(b){b.style.display=RCPT.n?"":"none";$("#rcptBellTxt").textContent=`소재 입고 ${RCPT.n}건 · ${f1(RCPT.kg)} kg`}
+    let seen=0;try{seen=+localStorage.getItem("raceway.rcptSeen")||0}catch(e){}
+    if(RCPT.n&&maxId>seen){toast(`🔔 새 소재 입고 ${RCPT.n}건 (${RCPT.items.slice(0,3).map(([c,k])=>`${c} ${f1(k)}kg`).join(", ")}${RCPT.items.length>3?" …":""}) → 소재 화면에서 가져오세요`);try{localStorage.setItem("raceway.rcptSeen",String(maxId))}catch(e){}}
+    if(SCREENS.board?.el&&activeId==="board")renderBoard()}catch(e){}}
 function matHint(){const f=$("#matForm");if(!f)return;const c=f.code.value;const kg=DB.matStock()[c]||0;const u=DB.matUnitKg(c);$("#matMsg").textContent=`${c} 재고 ${f1(kg)} kg`+(u?` = 약 ${fmt(Math.floor(kg/u))} 세트 (피치당 ${f1(u*1000)} g)`:"  (피치당 중량 없음 → 기준 화면에 두께·폭·피치 넣으세요)")}
 
 /* ---------- 이동표 ---------- */
@@ -1296,7 +1309,7 @@ document.addEventListener("click",e=>{if(!e.target.closest(".dd"))document.query
 $("#btnExportJson").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(DB.d)],{type:"application/json"}));a.download=`raceway_backup_${today()}.json`;a.click();toast("백업 파일 저장")};
 $("#fileImportJson").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!d.parts||!d.moves)throw 0;if(await confirmBox(`백업 파일(품번 ${d.parts.length}, 기록 ${d.moves.length}건)로 지금 데이터를 바꿉니다. 계속할까요?`)){DB.d=d;for(const t of Object.keys(SEED))DB.d[t]??=[];changed();rebuildPnLists();openScreen("home");toast(SB_ON?"백업 내용을 서버에 반영하는 중…":"불러오기 완료")}}catch(err){warn("백업 파일이 아닙니다")}e.target.value=""};
 $("#fileImportXl").onchange=async e=>{const f=e.target.files[0];if(f&&guard())await importXl(f);e.target.value=""};
-$("#btnXlMove").onclick=()=>{if(guard())$("#fileXlMove").click()};$("#fileXlMove").onchange=async e=>{const f=e.target.files[0];if(f)await importMoveXl(f);e.target.value=""};
+$("#btnXlMove").onclick=()=>{if(guard())$("#fileXlMove").click()};$("#rcptBell").onclick=()=>{openScreen("mat");setTimeout(()=>matReceiptPop(),150)};$("#fileXlMove").onchange=async e=>{const f=e.target.files[0];if(f)await importMoveXl(f);e.target.value=""};
 $("#btnExportXl").onclick=exportAll;
 $("#btnReset").onclick=async()=>{if(SB_ON){if(!guard())return;if(!await confirmBox("⚠ 서버(Supabase)의 RACEWAY 데이터를 전부 지우고 엑셀 원본(2026-10-08)으로 되돌립니다.\n모든 PC에 영향을 줍니다. 정말 할까요?"))return;if(!await confirmBox("한 번 더 확인합니다. 서버 데이터 전체 삭제 → 엑셀 원본 올리기. 진행할까요?"))return;try{await SB.wipe();await SB.seedIfEmptyForce();openScreen("home")}catch(e){toast("⚠ 실패: "+e.message)}return}
   if(await confirmBox("브라우저에 저장된 변경분을 지우고 엑셀 원본(2026-10-08) 데이터로 되돌립니다. 계속할까요?")){DB.reset();rebuildPnLists();changed();openScreen("home");toast("초기화 완료")}};
@@ -1308,8 +1321,9 @@ const src=DB.load();$("#dataHd").textContent=src==="supabase"?"Supabase (ESG Sma
 try{VIEW_ONLY=localStorage.getItem(LS_VIEW)==="1";$("#chkView").checked=VIEW_ONLY}catch(e){}
 function restoreTabs(){openScreen("home");let restored=false;try{const st=JSON.parse(sessionStorage.getItem(LS_TABS)||"null");if(st&&st.ids){st.ids.forEach(id=>SCREENS[id]&&openScreen(id));if(SCREENS[st.active]){openScreen(st.active);restored=true}}}catch(e){}if(!restored||activeId==="home")openScreen("board");if(VIEW_ONLY)document.querySelectorAll(".btn.pri,.btn.danger").forEach(b=>b.disabled=true)}
 if(SB_ON){$("#btnReload").style.display="";$("#statusMsg").textContent="서버에서 불러오는 중…";
-  (async()=>{try{await SB.load();await SB.seedIfEmpty();rebuildPnLists()}catch(e){console.error(e);$("#statusMsg").textContent="서버 연결 실패: "+e.message;await confirmBox("Supabase 연결에 실패했습니다.\n"+e.message+"\n\n테이블이 아직 없으면 raceway_supabase.sql 을 SQL Editor에서 먼저 실행하세요.\n(이 창은 서버 없이 비어 있는 상태로 열립니다)")}restoreTabs()})();
-  document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!SB.busy&&Date.now()-SB.lastLoad>30000)SB.reload()});
+  (async()=>{try{await SB.load();await SB.seedIfEmpty();rebuildPnLists();setTimeout(checkNewReceipts,800)}catch(e){console.error(e);$("#statusMsg").textContent="서버 연결 실패: "+e.message;await confirmBox("Supabase 연결에 실패했습니다.\n"+e.message+"\n\n테이블이 아직 없으면 raceway_supabase.sql 을 SQL Editor에서 먼저 실행하세요.\n(이 창은 서버 없이 비어 있는 상태로 열립니다)")}restoreTabs()})();
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!SB.busy&&Date.now()-SB.lastLoad>30000)SB.reload();if(!document.hidden)checkNewReceipts()});
+  setInterval(checkNewReceipts,10*60*1000);
 }else{const a=applyVendorSettings(),b=DB.migrateMoves();if(a||b)DB.save();restoreTabs()}
 setInterval(()=>$("#now").textContent=new Date().toLocaleString("ko-KR",{dateStyle:"medium",timeStyle:"medium"}),1000);
 </script>
