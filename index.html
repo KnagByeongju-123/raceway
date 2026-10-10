@@ -153,7 +153,7 @@ table.board th{position:sticky;top:0;z-index:2;height:30px;padding:0 8px;line-he
 table.board th.g0{background:#2f3d50}table.board th.g1{background:#8a6d1f}table.board th.g2{background:#5c6675}table.board th.g3{background:#1d7a55}table.board th.g4{background:#2f5496}table.board th.g5{background:#5a4632}table.board th.g6{background:#6d3f8e}table.board th.g7{background:#b5541c}table.board th.g8{background:#1f6f8b}table.board th.g9{background:#7a2e2e}
 table.board th.sub{top:30px;font-weight:500;font-size:12px;filter:brightness(1.15)}
 table.board td{height:30px;padding:0;line-height:30px;border-bottom:1px solid #edf0f4;border-right:1px solid #f1f3f6;text-align:right;vertical-align:middle;box-sizing:border-box}
-table.board td.lbl{text-align:left;padding:0 8px;font-weight:600;background:#fff;position:sticky;left:0;z-index:1}
+table.board td.lbl{text-align:left;padding:0 8px;font-weight:600;background:#fff;position:sticky;left:0;z-index:1}table.board td.lbl{min-width:150px;max-width:150px;width:150px;box-sizing:border-box}table.board .prd{position:sticky;left:150px;z-index:1;background:#fff;font-size:10.5px;font-weight:600;color:var(--ink-3);text-align:center;padding:0 6px;min-width:52px;box-sizing:border-box}table.board th.prd{z-index:3;color:#fff}table.board td.prd.in{color:#2f5496}table.board td.prd.out{color:#8a6d1f}table.board tr.model td.prd{background:#eef2f8}table.board tr.r2 td{border-bottom:1px solid #c9d2de}table.board tr:not(.r2) td:not([rowspan]){border-bottom:1px dotted #e3e8ef}table.board .obars{height:60px}
 table.board tr.model td.lbl{background:#eef2f8;color:#1c2430}
 table.board tr.model td{background:#f6f8fb}
 table.board td.cell{cursor:context-menu;position:relative;padding:0 22px 0 8px;min-width:88px}
@@ -251,7 +251,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 5.1</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 5.2</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -602,25 +602,28 @@ function renderBoard(){const st=DB.stock();const heat=DB.stockVendor(P.HEAT),sur
   const ymB=boardYm();const R=boardRange();const mon=R.isMonth?`${+ymB.slice(5)}월`:R.label;const inR=d=>d>=R.from&&d<=R.to;const mats=DB.matStock();const rem=DB.orderRem();
   const shipM={};for(const m of DB.d.moves)if(m.to_proc===P.SHIP&&inR(m.date)){const k=m.pn+"|"+m.prod;shipM[k]=(shipM[k]||0)+m.qty}
   const E=(src,tip)=>`<button type="button" class="rc eb" data-e="${src}" title="${tip}">E</button>`;
-  const cols=[["g5","소재 (기종)",["kg","환산 세트"],RCPT.n?`<button type="button" class="rc eb" data-rcpt title="ESG에 들어온 소재 입고 ${RCPT.n}건 (${f1(RCPT.kg)} kg) 아직 미등록 · 누르면 가져오기">🔔 ${RCPT.n}</button>`:""],["g0","태진 PRESS (기종 세트)",["INNER","OUTER"],E("close","ESG 생산마감 가져오기 (전 기종)")],["g1",`${HEAT_VENDOR} 열처리`,["INNER","OUTER"]],["g2","태진 사내대기",["INNER","OUTER"]],...SURF_VENDORS.map(v=>["g3",`${v} 표면처리`,["INNER","OUTER"]]),["g4","태진 검사대기",["INNER","OUTER"],E("sbc","SBC 검사대기·검사완료 가져오기 (전 품번)")],["g6","출하대기 (검사완료·포장)",["INNER","OUTER"],E("sbc","SBC 검사대기·검사완료 가져오기 (전 품번)")],["g7",`출하 누계 (${mon})`,["INNER","OUTER"],E("ship","SBC 출하 확정 가져오기 (전 품번)")]];
+  /* 줄 = 품번 × INNER/OUTER (엑셀 재고조사표처럼). 공정마다 칸 하나. 소재·주문 막대는 두 줄 합침 */
+  const cols=[["g5","소재 (기종)",["kg","환산 세트"],RCPT.n?`<button type="button" class="rc eb" data-rcpt title="ESG에 들어온 소재 입고 ${RCPT.n}건 (${f1(RCPT.kg)} kg) 아직 미등록 · 누르면 가져오기">🔔 ${RCPT.n}</button>`:""],["g0","태진 PRESS (기종 세트)",null,E("close","ESG 생산마감 가져오기 (전 기종)")],["g1",`${HEAT_VENDOR} 열처리`,null],["g2","태진 사내대기",null],...SURF_VENDORS.map(v=>["g3",`${v} 표면처리`,null]),["g4","태진 검사대기",null,E("sbc","SBC 검사대기·검사완료 가져오기 (전 품번)")],["g6","출하대기 (검사완료·포장)",null,E("sbc","SBC 검사대기·검사완료 가져오기 (전 품번)")],["g7",`출하 누계 (${mon})`,null,E("ship","SBC 출하 확정 가져오기 (전 품번)")]];
   const showDone=$("#boardDone")?.checked;const plans={};const keyOpen={};for(const m of DB.models()){const pm=orderPlanModel(m,st);for(const pn in pm){plans[pn]=pm[pn];for(const x of pm[pn])keyOpen[x.key]=(keyOpen[x.key]||false)||x.state!=="done"}}
   const rkeys=Object.keys(keyOpen).filter(k=>showDone||keyOpen[k]).sort((a,b)=>{const[ya,ra]=a.split("|"),[yb,rb]=b.split("|");return ya.localeCompare(yb)||(+ra)-(+rb)});const closed=closedRounds();
   cols.push(["g9","주문 · 차수별 달성 (▮ 출하 · ▯ 출하대기 · ▒ 검사대기 · ▬ 검은선 표면처리 · ▬ 빨간선 열처리 · ▒ PRESS · ▒ 소재 · 위 INNER / 아래 OUTER)",[...rkeys.map(k=>{const isC=!!closed[k],open=keyOpen[k];return`<span class="rk${open?"":" off"}">${esc(roundLabel(k))}</span>`+(isC?`<button type="button" class="rc" data-reopen="${esc(k)}" title="종료 취소">재개</button>`:open?`<button type="button" class="rc" data-close="${esc(k)}" title="이 차수를 종료 (남은 잔량은 포기, 완료로 취급)">종료</button>`:`<span class="rc done">완료</span>`)}),`<button type="button" class="rc add" id="roundAdd" title="새 차수 주문 등록">＋ 차수 추가</button>`]]);
-  const nSub=cols.reduce((a,c)=>a+c[2].length,0);
-  let h=`<table class="board"><thead><tr><th class="g0" rowspan="2" style="left:0;z-index:3">기종 / 품번</th>${cols.map(c=>`<th class="${c[0]}" colspan="${c[2].length}">${esc(c[1])}${c[3]||""}</th>`).join("")}</tr><tr>${cols.map(c=>c[2].map(x=>`<th class="${c[0]} sub">${x}</th>`).join("")).join("")}</tr></thead><tbody>`;
+  const nCol=cols.reduce((a,c)=>a+(c[2]?c[2].length:1),0);
+  let h=`<table class="board io"><thead><tr><th class="g0" rowspan="2" style="left:0;z-index:3">기종 / 품번</th><th class="g0 prd" rowspan="2">제품</th>${cols.map(c=>c[2]?`<th class="${c[0]}" colspan="${c[2].length}">${esc(c[1])}${c[3]||""}</th>`:`<th class="${c[0]}" rowspan="2">${esc(c[1])}${c[3]||""}</th>`).join("")}</tr><tr>${cols.map(c=>c[2]?c[2].map(x=>`<th class="${c[0]} sub">${x}</th>`).join(""):"").join("")}</tr></thead><tbody>`;
   const cell=(q,pn,proc,prod,vendor,extra)=>`<td class="cell${q<0?" neg":q===0?" zero":""}" data-pn="${esc(pn)}" data-proc="${proc}" data-prod="${prod}" data-vendor="${esc(vendor||"")}" ${extra||""}>${fmt(q)}<span class="dots">⋯</span></td>`;
-  const ro=(txt,pop,cls,title,pn)=>`<td class="ro${cls?" "+cls:""}" data-pop="${pop}" data-pn="${esc(pn||"")}" title="${esc(title||"")}">${txt}</td>`;
+  const ro=(txt,pop,cls,title,pn,extra)=>`<td class="ro${cls?" "+cls:""}" data-pop="${pop}" data-pn="${esc(pn||"")}" title="${esc(title||"")}"${extra||""}>${txt}</td>`;
+  const prdTd=pr=>`<td class="prd ${pr==="INNER"?"in":"out"}">${pr==="INNER"?"INNER":"OUTER"}</td>`;
   for(const m of DB.models()){const ps=DB.partsOfModel(m);
     const codes=[...new Set(ps.map(p=>DB.matCode(p.pn)))];let kg=0,sets=0;for(const c of codes){const k=mats[c]||0;kg+=k;const u=DB.matUnitKg(c);if(u)sets+=Math.floor(k/u)}
-    h+=`<tr class="model"><td class="lbl"><div class="lblw">${esc(m)} <small style="color:var(--ink-3);font-weight:400">기종</small>${mvBtns("model",m)}</div></td>${ro(f1(kg)+" <small>kg</small>","matIn",kg<0?"warn":kg===0?"zero":"",codes.join(", ")+" · 누르면 소재 입고/사용",m)}${ro(fmt(sets),"matIn",sets===0?"zero":"","소재 kg ÷ 피치당 중량 · 누르면 소재 입고/사용",m)}${PRODS.map(pr=>cell(DB.q(st,m,pr,P.PRESS),m,P.PRESS,pr,"",'data-model="1"')).join("")}${"<td class=\"na\"></td>".repeat(nSub-4)}</tr>`;
-    for(const p of ps){const sf=p.surface==="유";h+=`<tr><td class="lbl" style="padding-left:18px"><div class="lblw">${esc(p.pn)} <small style="color:var(--ink-3);font-weight:400">${sf?"표O":"표X"}</small>${mvBtns("part",p.pn)}</div></td><td class="na">·</td><td class="na">·</td><td class="na">·</td><td class="na">·</td>`;
-      h+=PRODS.map(pr=>cell(vend(heat,p.pn,pr,HEAT_VENDOR),p.pn,P.HEAT,pr,HEAT_VENDOR)).join("");
-      h+=sf?PRODS.map(pr=>cell(DB.q(st,p.pn,pr,P.HOLD),p.pn,P.HOLD,pr,"")).join(""):'<td class="na">-</td><td class="na">-</td>';
-      for(const v of SURF_VENDORS)h+=sf?PRODS.map(pr=>cell(vend(surf,p.pn,pr,v),p.pn,P.SURF,pr,v)).join(""):'<td class="na">-</td><td class="na">-</td>';
-      h+=PRODS.map(pr=>cell(DB.q(st,p.pn,pr,P.WAIT),p.pn,P.WAIT,pr,"")).join("");
-      h+=PRODS.map(pr=>cell(DB.q(st,p.pn,pr,P.DONE),p.pn,P.DONE,pr,"")).join("");
-      h+=PRODS.map(pr=>{const q=shipM[p.pn+"|"+pr]||0;return ro(fmt(q),"shipEdit",q===0?"zero":"",`${mon} 출하 누계 · 누르면 출하 내역·컨테이너 수정`,p.pn)}).join("");
-      for(const k of rkeys)h+=`<td class="ro ord" data-pop="orderNew" data-pn="${esc(p.pn)}">${orderBars(plans[p.pn].filter(x=>x.key===k))}</td>`;h+=`<td class="na"></td></tr>`}}
+    PRODS.forEach((pr,i)=>{h+=`<tr class="model${i?" r2":""}">`+(i?"":`<td class="lbl" rowspan="2"><div class="lblw">${esc(m)} <small style="color:var(--ink-3);font-weight:400">기종</small>${mvBtns("model",m)}</div></td>`)+prdTd(pr)+(i?"":ro(f1(kg)+" <small>kg</small>","matIn",kg<0?"warn":kg===0?"zero":"",codes.join(", ")+" · 누르면 소재 입고/사용",m,' rowspan="2"')+ro(fmt(sets),"matIn",sets===0?"zero":"","소재 kg ÷ 피치당 중량 · 누르면 소재 입고/사용",m,' rowspan="2"'))+cell(DB.q(st,m,pr,P.PRESS),m,P.PRESS,pr,"",'data-model="1"')+"<td class=\"na\"></td>".repeat(nCol-3)+`</tr>`});
+    for(const p of ps){const sf=p.surface==="유";
+      PRODS.forEach((pr,i)=>{h+=`<tr${i?' class="r2"':""}>`+(i?"":`<td class="lbl" rowspan="2" style="padding-left:18px"><div class="lblw">${esc(p.pn)} <small style="color:var(--ink-3);font-weight:400">${sf?"표O":"표X"}</small>${mvBtns("part",p.pn)}</div></td>`)+prdTd(pr)+(i?"":'<td class="na" rowspan="2">·</td><td class="na" rowspan="2">·</td>')+'<td class="na">·</td>';
+        h+=cell(vend(heat,p.pn,pr,HEAT_VENDOR),p.pn,P.HEAT,pr,HEAT_VENDOR);
+        h+=sf?cell(DB.q(st,p.pn,pr,P.HOLD),p.pn,P.HOLD,pr,""):'<td class="na">-</td>';
+        for(const v of SURF_VENDORS)h+=sf?cell(vend(surf,p.pn,pr,v),p.pn,P.SURF,pr,v):'<td class="na">-</td>';
+        h+=cell(DB.q(st,p.pn,pr,P.WAIT),p.pn,P.WAIT,pr,"");
+        h+=cell(DB.q(st,p.pn,pr,P.DONE),p.pn,P.DONE,pr,"");
+        const q=shipM[p.pn+"|"+pr]||0;h+=ro(fmt(q),"shipEdit",q===0?"zero":"",`${mon} 출하 누계 · 누르면 출하 내역·컨테이너 수정`,p.pn);
+        if(!i){for(const k of rkeys)h+=`<td class="ro ord" rowspan="2" data-pop="orderNew" data-pn="${esc(p.pn)}">${orderBars(plans[p.pn].filter(x=>x.key===k))}</td>`;h+=`<td class="na" rowspan="2"></td>`}h+=`</tr>`})}}
   h+="</tbody></table>";const w=$("#boardWrap");w.innerHTML=h;
   w.querySelectorAll("td.cell").forEach(td=>{td.oncontextmenu=e=>{e.preventDefault();boardMenu(e,td)};td.querySelector(".dots").onclick=e=>{e.stopPropagation();boardMenu(e,td)}});
   w.querySelectorAll("td.ro").forEach(td=>td.onclick=()=>boardPop(td.dataset.pop,{pn:td.dataset.pn}));
