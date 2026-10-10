@@ -165,7 +165,7 @@ table.board td.cell.neg{color:var(--red);font-weight:600}
 table.board td.na{background:#fafafa;color:#d0d5dd;text-align:center}
 table.board td.lbl .mv{float:right;margin-left:6px;visibility:hidden}table.board tr:hover td.lbl .mv{visibility:visible}table.board td.lbl .mv button{border:1px solid var(--line);background:#fff;color:var(--ink-2);font-size:9px;line-height:1;padding:3px 4px;border-radius:3px;cursor:pointer;margin-left:2px}table.board td.lbl .mv button:hover{background:var(--amber);color:#fff;border-color:var(--amber)}
 table.board td.lbl .lblw{display:flex;align-items:center;gap:6px;height:30px}table.board td.lbl .mv{margin-left:auto}
-table.board td.ord{padding:0 6px;text-align:left}.obars{display:inline-flex;gap:4px;align-items:center;height:30px}.ob{position:relative;display:inline-block;min-width:96px;height:20px;line-height:18px;border:1px solid #c9d2de;border-radius:3px;background:#f3f5f8;font-size:10.5px;text-align:center;overflow:hidden;white-space:nowrap;padding:0 4px;vertical-align:middle}.ob i{position:absolute;top:0;bottom:0;left:0}.ob .f{background:#2f5496}.ob .a{background:#a9c4e8}.ob b{position:relative;font-weight:600;color:#1c2430;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 2px #fff}.ob.ok{border-color:#2f5496}.ob.part{border-color:#d08a1a;background:#fff4e0}.ob.part .a{background:#f3c977}.ob.no{border-color:#c0392b;background:#fdeceb}.ob.done{border-color:#1d7a55;background:#e4f3ec}.ob.done .f{background:#1d7a55}.ob.done b{color:#fff;text-shadow:none}.ob .f+.a+b{mix-blend-mode:normal}.ob.ok .f~b,.ob.part .f~b{color:#1c2430}.ob.none{color:#b0b8c4;border-style:dashed;min-width:60px}
+table.board td.ord{padding:0 4px;text-align:center;min-width:104px}.obars{display:inline-flex;gap:4px;align-items:center;height:30px}.ob{position:relative;display:inline-block;min-width:96px;height:20px;line-height:18px;border:1px solid #c9d2de;border-radius:3px;background:#f3f5f8;font-size:10.5px;text-align:center;overflow:hidden;white-space:nowrap;padding:0 4px;vertical-align:middle}.ob i{position:absolute;top:0;bottom:0;left:0}.ob .f{background:#2f5496}.ob .a{background:#a9c4e8}.ob b{position:relative;font-weight:600;color:#1c2430;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 2px #fff}.ob.ok{border-color:#2f5496}.ob.part{border-color:#d08a1a;background:#fff4e0}.ob.part .a{background:#f3c977}.ob.no{border-color:#c0392b;background:#fdeceb}.ob.done{border-color:#1d7a55;background:#e4f3ec}.ob.done .f{background:#1d7a55}.ob.done b{color:#fff;text-shadow:none}.ob .f+.a+b{mix-blend-mode:normal}.ob.ok .f~b,.ob.part .f~b{color:#1c2430}.ob.none{color:#d0d5dd;border:0;background:none;min-width:40px}
 table.board td.ro{padding:0 8px;min-width:72px;cursor:pointer;color:var(--ink-2)}table.board td.ro:hover{background:#eef4fb}table.board td.ro.zero{color:#b0b8c4}table.board td.ro.warn{color:var(--red);font-weight:600}table.board td.ro small{color:var(--ink-3);font-weight:400}
 .ctx{position:fixed;display:none;background:var(--white);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:5px;min-width:210px;z-index:600}
 .ctx.open{display:block}
@@ -248,7 +248,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 2.8</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 2.9</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -575,8 +575,10 @@ function renderBoard(){const st=DB.stock();const heat=DB.stockVendor(P.HEAT),sur
   const ymB=boardYm(),mon=+ymB.slice(5)+"월";const mats=DB.matStock();const rem=DB.orderRem();
   const shipM={};for(const m of DB.d.moves)if(m.to_proc===P.SHIP&&m.date.slice(0,7)===ymB){const k=m.pn+"|"+m.prod;shipM[k]=(shipM[k]||0)+m.qty}
   const contM={};for(const x of DB.d.shipments)if(x.container&&x.date.slice(0,7)===ymB){(contM[x.pn]??={set:0,no:new Set()});contM[x.pn].set+=x.qty;contM[x.pn].no.add(`${x.container} ${x.container_no||""}`.trim())}
-  const cols=[["g5","소재 (기종)",["kg","환산 세트"]],["g0","태진 PRESS (기종 세트)",["INNER","OUTER"]],["g1",`${HEAT_VENDOR} 열처리`,["INNER","OUTER"]],["g2","태진 사내대기",["INNER","OUTER"]],...SURF_VENDORS.map(v=>["g3",`${v} 표면처리`,["INNER","OUTER"]]),["g4","태진 검사대기",["INNER","OUTER"]],["g6","출하대기 (검사완료·포장)",["INNER","OUTER"]],["g7",`출하 ${mon} 누계`,["INNER","OUTER"]],["g8",`컨테이너 선적 ${mon}`,["세트","컨테이너"]],["g9","주문 · 차수별 달성",["▮ 출하 · ▯ 출하대기로 가능 · 빈칸 부족"]]];
-  const nSub=cols.reduce((a,c)=>a+c[2].length,0);const showDone=$("#boardDone")?.checked;
+  const cols=[["g5","소재 (기종)",["kg","환산 세트"]],["g0","태진 PRESS (기종 세트)",["INNER","OUTER"]],["g1",`${HEAT_VENDOR} 열처리`,["INNER","OUTER"]],["g2","태진 사내대기",["INNER","OUTER"]],...SURF_VENDORS.map(v=>["g3",`${v} 표면처리`,["INNER","OUTER"]]),["g4","태진 검사대기",["INNER","OUTER"]],["g6","출하대기 (검사완료·포장)",["INNER","OUTER"]],["g7",`출하 ${mon} 누계`,["INNER","OUTER"]],["g8",`컨테이너 선적 ${mon}`,["세트","컨테이너"]],];
+  const showDone=$("#boardDone")?.checked;const plans={};let maxR=5;for(const p of DB.parts()){plans[p.pn]=orderPlan(p.pn,st).filter(x=>showDone||x.state!=="done");for(const x of plans[p.pn])maxR=Math.max(maxR,+x.o.round||1)}
+  cols.push(["g9","주문 · 차수별 달성 (▮ 출하 · ▯ 출하대기로 가능 · 빈칸 부족)",[...Array(maxR)].map((_,i)=>(i+1)+"차")]);
+  const nSub=cols.reduce((a,c)=>a+c[2].length,0);
   let h=`<table class="board"><thead><tr><th class="g0" rowspan="2" style="left:0;z-index:3">기종 / 품번</th>${cols.map(c=>`<th class="${c[0]}" colspan="${c[2].length}">${esc(c[1])}</th>`).join("")}</tr><tr>${cols.map(c=>c[2].map(x=>`<th class="${c[0]} sub">${x}</th>`).join("")).join("")}</tr></thead><tbody>`;
   const cell=(q,pn,proc,prod,vendor,extra)=>`<td class="cell${q<0?" neg":q===0?" zero":""}" data-pn="${esc(pn)}" data-proc="${proc}" data-prod="${prod}" data-vendor="${esc(vendor||"")}" ${extra||""}>${fmt(q)}<span class="dots">⋯</span></td>`;
   const ro=(txt,pop,cls,title,pn)=>`<td class="ro${cls?" "+cls:""}" data-pop="${pop}" data-pn="${esc(pn||"")}" title="${esc(title||"")}">${txt}</td>`;
@@ -591,17 +593,17 @@ function renderBoard(){const st=DB.stock();const heat=DB.stockVendor(P.HEAT),sur
       h+=PRODS.map(pr=>cell(DB.q(st,p.pn,pr,P.DONE),p.pn,P.DONE,pr,"")).join("");
       h+=PRODS.map(pr=>{const q=shipM[p.pn+"|"+pr]||0;return ro(fmt(q),"shipEdit",q===0?"zero":"",`${mon} 출하 누계 · 누르면 출하 내역·컨테이너 수정`,p.pn)}).join("");
       const c=contM[p.pn];h+=ro(fmt(c?c.set:0),"shipEdit",c?"":"zero",`${mon} 컨테이너 선적 세트 · 누르면 출하 내역·컨테이너 수정`,p.pn)+ro(c?`${c.no.size} <small>개</small>`:"0","shipEdit",c?"":"zero",(c?[...c.no].join(", "):"")+" · 누르면 출하 내역·컨테이너 수정",p.pn);
-      h+=`<td class="ro ord" data-pop="orderNew" data-pn="${esc(p.pn)}">${orderBars(p.pn,st,showDone)}</td></tr>`}}
+      for(let rd=1;rd<=maxR;rd++)h+=`<td class="ro ord" data-pop="orderNew" data-pn="${esc(p.pn)}">${orderBars(plans[p.pn].filter(x=>(+x.o.round||1)===rd))}</td>`;h+="</tr>"}}
   h+="</tbody></table>";const w=$("#boardWrap");w.innerHTML=h;
   w.querySelectorAll("td.cell").forEach(td=>{td.oncontextmenu=e=>{e.preventDefault();boardMenu(e,td)};td.querySelector(".dots").onclick=e=>{e.stopPropagation();boardMenu(e,td)}});
   w.querySelectorAll("td.ro").forEach(td=>td.onclick=()=>boardPop(td.dataset.pop,{pn:td.dataset.pn}));
   w.querySelectorAll("button[data-mv]").forEach(b=>b.onclick=e=>{e.stopPropagation();boardMove(b.dataset.kind,b.dataset.key,b.dataset.mv)})}
 /* 주문 차수별 달성 그래프: 출하분(▮) + 출하대기 재고로 채울 수 있는 분(▯, 앞 차수부터 배정) + 부족(빈칸)
    완료(출하 ≥ 수량)된 차수는 기본으로 숨김 → 다음 차수 관리에 집중. 상단 [완료 차수 보기]로 표시 */
-function orderPlan(pn,st){const list=[...DB.d.orders].filter(o=>o.pn===pn).sort((a,b)=>a.ym.localeCompare(b.ym)||a.round-b.round||a.id-b.id);let avail=Math.max(0,Math.min(DB.q(st,pn,"INNER",P.DONE),DB.q(st,pn,"OUTER",P.DONE)));
+function orderPlan(pn,st){const list=[...DB.d.orders].filter(o=>o.pn===pn).sort((a,b)=>a.ym.localeCompare(b.ym)||(+a.round||0)-(+b.round||0)||a.id-b.id);let avail=Math.max(0,Math.min(DB.q(st,pn,"INNER",P.DONE),DB.q(st,pn,"OUTER",P.DONE)));
   return list.map(o=>{const sh=DB.shipped(o.id),rem=Math.max(0,o.qty-sh);const done=o.qty>0&&sh>=o.qty;let can=0;if(!done){can=Math.min(rem,avail);avail-=can}const state=done?"done":rem<=can?"ok":can>0?"part":"no";return{o,sh,rem,can,state}})}
 const kfmt=n=>n>=10000?Math.round(n/1000)+"k":n>=1000?(Math.round(n/100)/10)+"k":String(Math.round(n));
-function orderBars(pn,st,showDone){const plan=orderPlan(pn,st).filter(x=>showDone||x.state!=="done");if(!plan.length)return`<span class="obars"><span class="ob none">주문 없음</span></span>`;
+function orderBars(plan){if(!plan.length)return`<span class="obars"><span class="ob none">·</span></span>`;
   return`<span class="obars">`+plan.map(x=>{const o=x.o;const pS=o.qty?Math.min(100,x.sh/o.qty*100):0,pC=o.qty?Math.min(100-pS,x.can/o.qty*100):0;const lab=`${+o.ym.slice(5)}월${o.round}차 ${kfmt(x.sh)}/${kfmt(o.qty)}`;const T={done:"완료",ok:"달성 가능 (출하대기 재고로 잔량 충당)",part:"일부 가능 · 부족 "+fmt(x.rem-x.can),no:"재고 부족 "+fmt(x.rem)}[x.state];
     return`<span class="ob ${x.state}" title="${esc(o.ym)} ${o.round}차 ${esc(o.customer||"ATC")} · 수량 ${fmt(o.qty)} · 출하 ${fmt(x.sh)} · 잔량 ${fmt(x.rem)}${o.ship_date?" · 출하예정 "+o.ship_date:""}${o.due_date?" · 납기 "+o.due_date:""} — ${T}"><i class="f" style="width:${pS}%"></i><i class="a" style="left:${pS}%;width:${pC}%"></i><b>${x.state==="done"?"✓ ":""}${esc(lab)}</b></span>`}).join("")+`</span>`}
 /* 줄 순서 바꾸기: 기종은 기종끼리, 품번은 같은 기종 안에서. 순서는 기준의 정렬순서(sort)에 저장 → 모든 화면·서버에 같이 적용 */
