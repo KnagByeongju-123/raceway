@@ -251,7 +251,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 7.5</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 7.6</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -673,7 +673,9 @@ function orderLine(plan,prod,rkeys,pn){const seq=plan.filter(x=>rkeys.includes(x
   const total=start;const outOn=!!localStorage.getItem("raceway.boardOut"),matOn=!!localStorage.getItem("raceway.boardMat");const pressOn=!!localStorage.getItem("raceway.boardPress");const hide=k=>k==="wt"||(!outOn&&["ws","wh"].includes(k))||(!matOn&&k==="mt")||(!pressOn&&k==="wp");const marks=[...STAGES.filter(([k])=>!hide(k)).map(([k,nm,col],i)=>({r:amt[k],nm,col,z:1+i,shape:"c",always:k==="sh"})),{r:amt.can+amt.wt,nm:"2층검사실 (검사대기+검사완료)",col:"#f5e600",z:9,shape:"c",always:false}];
   return rkeys.map(key=>{const ss=segs.filter(s=>s.x.key===key);if(!ss.length)return`<td class="ro ord" data-pop="orderNew" data-pn="${esc(pn)}"><span class="oline none">·</span></td>`;
     const a=ss[0].start,b=ss[ss.length-1].start+ss[ss.length-1].q;const w=(b-a)||1;let mh="";
-    for(const m of marks){let r=Math.min(m.r,total);if(!m.always&&m.r<=0)continue;if(r<a||r>b||(r===a&&a>0))continue;mh+=`<i class="mk ${m.shape==="t"?"tri":""}" style="left:${(r-a)/w*100}%;${m.shape==="t"?`border-bottom-color:${m.col}`:`background:${m.col}`};z-index:${m.z}" title="${m.nm} ${fmt(m.r)} (${prod})"></i>`}
+    /* 겹치는 원은 살짝 엇갈리게 (가까운 순서대로 위·아래 번갈아) */
+    const list=[];for(const m of marks){let r=Math.min(m.r,total);if(!m.always&&m.r<=0)continue;if(r<a||r>b||(r===a&&a>0))continue;list.push({m,r,pct:(r-a)/w*100})}
+    list.sort((x,y)=>x.pct-y.pct);let prev=-999,lane=0;for(const x of list){lane=(x.pct-prev<7)?(lane+1)%2:0;prev=x.pct;const off=lane?"top:11px;margin-left:-3px;":"";mh+=`<i class="mk ${x.m.shape==="t"?"tri":""}" style="left:${x.pct}%;${off}${x.m.shape==="t"?`border-bottom-color:${x.m.col}`:`background:${x.m.col}`};z-index:${x.m.z}" title="${x.m.nm} ${fmt(x.m.r)} (${prod})"></i>`}
     const st=ss.some(s=>["no","part"].includes(s.x.pr[prod].state))?"short":"";const tip=ss.map(s=>{const y=s.x.pr[prod];return`${esc(s.x.o.ym)} ${s.x.o.round}차 ${prod} 수량 ${fmt(s.q)} · 출하 ${fmt(y.sh)} · 검사완료 ${fmt(y.can)} · 검사대기 ${fmt(y.wt)} · 표면처리 ${fmt(y.ws)} · 열처리 ${fmt(y.wh)} · 프레스 ${fmt(y.wp)} · 소재 ${fmt(y.mt)}`+(y.left-y.mt>0?` · 부족 ${fmt(y.left-y.mt)}`:"")}).join("\n");
     const bq=DB.part(pn)?.box_qty||0;const lab=ss.map(s=>fmt(s.q)+(bq?` (${f1(s.q/bq)}Box)`:"")+(custName(s.x.o.customer)!==CUSTOMERS[0]?" "+esc(custName(s.x.o.customer)):"")).join(" · ");
     return`<td class="ro ord ${st}" data-pop="orderNew" data-pn="${esc(pn)}" title="${tip}"><span class="oline"><i class="ln"></i>${mh}<b>${lab}</b></span></td>`}).join("")}
