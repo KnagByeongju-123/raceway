@@ -251,7 +251,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 5.6</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 5.7</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -654,8 +654,8 @@ function orderPlanModel(model,st){const parts=DB.partsOfModel(model);const pnSet
 function orderPlan(pn,st){return orderPlanModel(DB.modelOf(pn),st)[pn]||[]}
 const kfmt=n=>n>=10000?Math.round(n/1000)+"k":n>=1000?(Math.round(n/100)/10)+"k":String(Math.round(n));
 function orderBars(plan,prod){if(!plan.length)return`<span class="obars"><span class="ob none">·</span></span>`;
-  /* 단계마다 가는 선 하나씩 위에서 아래로 (있는 단계만). 선의 시작·길이 = 그 단계가 채우는 구간 */
-  const row=(o,x,cls)=>{const q=o.qty||1;let acc=0;const lines=[];const seg=(k,c,draw=true)=>{const v=k==="sh"?x.sh:(x[k]||0);const w=Math.min(100-acc,v/q*100);if(w>0&&draw)lines.push(`<i class="${c}" style="left:${acc}%;width:${w}%;top:${lines.length*4+1}px"></i>`);acc+=w};
+  /* 단계마다 가는 선 하나씩 위에서 아래로 (있는 단계만). 선마다 왼쪽 0 에서 시작, 길이 = 그 단계 수량 ÷ 주문수량 */
+  const row=(o,x,cls)=>{const q=o.qty||1;let acc=0;const lines=[];const seg=(k,c,draw=true)=>{const v=k==="sh"?x.sh:(x[k]||0);const w=Math.min(100,v/q*100);if(w>0&&draw)lines.push(`<i class="${c}" style="left:0;width:${w}%;top:${lines.length*4+1}px"></i>`)};
     seg("sh","f");seg("can","a");seg("wt","w");seg("ws","ls",false);seg("wh","lh",false);seg("wp","p");seg("mt","m");
     return`<span class="orow ${cls} ${x.state}">${lines.join("")}</span>`};
   return`<span class="obars">`+plan.map(x=>{const o=x.o;const sI=x.pr.INNER.sh,sO=x.pr.OUTER.sh;const lab=(sI===sO?kfmt(sI):`${kfmt(sI)}·${kfmt(sO)}`)+`/${kfmt(o.qty)}`+(custName(o.customer)!==CUSTOMERS[0]?" "+custName(o.customer):"");
