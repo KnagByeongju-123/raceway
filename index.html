@@ -163,6 +163,7 @@ table.board td.cell:hover .dots{color:var(--ink);background:#f3d79a}
 table.board td.cell.zero{color:#b0b8c4}
 table.board td.cell.neg{color:var(--red);font-weight:600}
 table.board td.na{background:#fafafa;color:#d0d5dd;text-align:center}
+table.board td.lbl .mv{float:right;margin-left:6px;visibility:hidden}table.board tr:hover td.lbl .mv{visibility:visible}table.board td.lbl .mv button{border:1px solid var(--line);background:#fff;color:var(--ink-2);font-size:9px;line-height:1;padding:3px 4px;border-radius:3px;cursor:pointer;margin-left:2px}table.board td.lbl .mv button:hover{background:var(--amber);color:#fff;border-color:var(--amber)}
 table.board td.ro{padding:0 8px;min-width:72px;cursor:pointer;color:var(--ink-2)}table.board td.ro:hover{background:#eef4fb}table.board td.ro.zero{color:#b0b8c4}table.board td.ro.warn{color:var(--red);font-weight:600}table.board td.ro small{color:var(--ink-3);font-weight:400}
 .ctx{position:fixed;display:none;background:var(--white);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:5px;min-width:210px;z-index:600}
 .ctx.open{display:block}
@@ -245,7 +246,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 2.6</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 2.7</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -259,6 +260,9 @@ const SEED = {"parts":[{"pn":"1106 CB","surface":"유","ht_temp":"215℃","surf_
 
 /* ================== 상수 ================== */
 const PRODS=["INNER","OUTER"];
+/* 엑셀 원본(재고상황 · 전공정이동표) 품번 시트 순서 — 정렬순서(sort)가 같을 때 기본 배치 */
+const EXCEL_ORDER=["1106 CB","1106 CA","1113 AA D","1113 E","1124","1165","1179","1179 C","1159 C","1159 B","1156","1156 A"];
+const excelIdx=pn=>{const k=String(pn).replace(/\s+/g,"").toUpperCase();const i=EXCEL_ORDER.findIndex(x=>x.replace(/\s+/g,"")===k);return i<0?999:i};
 const P={PRESS:"PRESS",HEAT:"열처리",HOLD:"사내대기",SURF:"표면처리",WAIT:"검사대기",DONE:"검사완료",SHIP:"출하",SCRAP:"폐기",ADJ:"조정"};
 const OUTSIDE=[P.SHIP,P.SCRAP,P.ADJ];
 const PROC_ORDER=[P.PRESS,P.HEAT,P.HOLD,P.SURF,P.WAIT,P.DONE];   /* 사내대기 = 열처리 후 사내 입고(표면처리 전) */
@@ -304,7 +308,7 @@ const DB={
   nextId(t){return this.d[t].reduce((m,r)=>Math.max(m,r.id||0),0)+1},
   setting(k,def){const r=this.d.settings.find(x=>x.key===k);return r?r.val:def},
   setSetting(k,v){const r=this.d.settings.find(x=>x.key===k);if(r)r.val=String(v);else this.d.settings.push({key:k,val:String(v)})},
-  parts(){return [...this.d.parts].sort((a,b)=>(a.sort-b.sort)||a.pn.localeCompare(b.pn))},
+  parts(){return [...this.d.parts].sort((a,b)=>((a.sort||0)-(b.sort||0))||(excelIdx(a.pn)-excelIdx(b.pn))||a.pn.localeCompare(b.pn))},
   part(pn){return this.d.parts.find(p=>p.pn===pn)},
   pns(){return this.parts().map(p=>p.pn)},
   /* 기종(PRESS 단위) = 기준의 '기종' 칸, 비어 있으면 품번 앞자리 (1106 CB → 1106) */
@@ -549,11 +553,11 @@ async function syncRegisterSbc(){if(!guard())return;const ids=selIds($("#syncSbc
 
 /* ---------- 물류 보드 : 태진 → 한성 → 사내대기 → 동진 → 검사대기, 우클릭 이동 ---------- */
 def("board","물류 보드","외주·검사","외주","소재→생산→열처리→사내대기→표면처리→검사대기→출하대기→출하→컨테이너 선적 한눈에, 우클릭으로 이동",function(el){
-  el.innerHTML=`<div class="bar"><label>기준일 <input type="date" id="boardDate" value="${today()}"></label><label>작업자 <input id="boardWorker" value="${esc(WORKER)}" placeholder="이름" style="width:90px"></label><button class="btn" id="boardRefresh">새로고침</button><span class="note">칸을 <b>마우스 우클릭</b>(또는 ⋯)하면 그 칸에서 할 수 있는 이동이 나옵니다. 기준일은 등록 일자이면서 출하·선적 열의 달 기준, 작업자는 이력에 남습니다. 수량은 INNER / OUTER 개별, PRESS는 기종 세트. 소재·출하·선적·주문 칸은 누르면 팝업으로 바로 입력합니다 (화면 안 옮김).</span></div><div class="tw" style="max-height:62vh" id="boardWrap"></div>
+  el.innerHTML=`<div class="bar"><label>기준일 <input type="date" id="boardDate" value="${today()}"></label><label>작업자 <input id="boardWorker" value="${esc(WORKER)}" placeholder="이름" style="width:90px"></label><button class="btn" id="boardRefresh">새로고침</button><button class="btn" id="boardOrderXl" title="품번 줄 순서를 엑셀 원본 시트 순서로">↕ 엑셀 순서로</button><span class="note">칸을 <b>마우스 우클릭</b>(또는 ⋯)하면 그 칸에서 할 수 있는 이동이 나옵니다. 기준일은 등록 일자이면서 출하·선적 열의 달 기준, 작업자는 이력에 남습니다. 수량은 INNER / OUTER 개별, PRESS는 기종 세트. 소재·출하·선적·주문 칸은 누르면 팝업으로 바로 입력합니다 (화면 안 옮김).</span></div><div class="tw" style="max-height:62vh" id="boardWrap"></div>
   <div class="card" style="margin-top:12px"><h3>컨테이너 선적 <span id="boardContSub">기준일 달 · 컨테이너를 적은 출하만</span>${xlBtns("#boardCont","컨테이너선적")}</h3><div id="boardCont"></div><div class="note">같은 컨테이너 번호 = 같은 컨테이너. 박스 = set×2 ÷ 1박스수량(INNER·OUTER 따로 포장). 컨테이너를 안 적은 출하는 여기 안 나옵니다 → 보드의 출하 칸이나 이 표의 줄을 누르면 팝업에서 컨테이너 종류·번호를 적을 수 있습니다.</div></div>
   <div class="card" style="margin-top:12px"><h3>이동 이력 <span>최근 등록 순 · 줄을 누르면 선택</span><span class="h3btn"><label class="note">보기 <select id="histRange"><option value="today">오늘 등록</option><option value="3">최근 3일</option><option value="30">최근 30일</option><option value="all">전체</option></select></label><button class="btn sm danger" id="histUndo">선택 취소(삭제)</button><button class="btn sm" onclick="exportTable('#boardHist','이동이력')">⇩ 엑셀</button></span></h3><div id="boardHist"></div><div class="note">같은 번호(#)의 줄은 한 번의 이동(보낸 쪽 + 받는 쪽)이라 함께 취소됩니다. 취소하면 재고가 되돌아갑니다.</div></div>
   <div class="note">흐름: 소재(기종) → 태진 PRESS(기종 세트, ESG 생산마감 등록분) → ${esc(HEAT_VENDOR)} 열처리 → 태진 사내대기 → ${SURF_VENDORS.map(esc).join("/")} 표면처리 → 태진 검사대기 → <b>출하대기</b>(= SBC 검사완료·포장완료) → 출하(기준일 달 누계, SBC 출하 확정 등록분) → 컨테이너 선적(기준일 달, 컨테이너 적은 출하) · 주문 잔량 = 미출하 발주. 표면처리 없는 품번은 사내대기·표면처리 칸이 비어 있음. 열처리·표면처리 칸 = 보낸 수량 − 돌아온 수량(미회수). <b>품번조절복귀</b> = 한성/동진/사내대기에 있는 품번을 다른 품번으로 바꿔 사내(검사대기)로 받는 예외 처리.</div>`;
-  el.querySelector("#boardRefresh").onclick=()=>SCREENS.board.refresh();el.querySelector("#boardDate").onchange=()=>{renderBoard();renderBoardCont()};el.querySelector("#boardWorker").onchange=e=>{WORKER=e.target.value.trim();try{localStorage.setItem("raceway.worker",WORKER)}catch(x){}};el.querySelector("#histRange").onchange=()=>renderBoardHist();
+  el.querySelector("#boardRefresh").onclick=()=>SCREENS.board.refresh();el.querySelector("#boardOrderXl").onclick=async()=>{if(!guard())return;if(!await confirmBox("품번 줄 순서를 엑셀 원본 시트 순서(1106 CB, 1106 CA, 1113 AA D, 1113 E, 1124, 1165, 1179, 1179 C, 1159 C, 1159 B, 1156, 1156 A)로 되돌릴까요?\n기준 화면의 정렬순서 값이 바뀝니다."))return;boardOrderReset()};el.querySelector("#boardDate").onchange=()=>{renderBoard();renderBoardCont()};el.querySelector("#boardWorker").onchange=e=>{WORKER=e.target.value.trim();try{localStorage.setItem("raceway.worker",WORKER)}catch(x){}};el.querySelector("#histRange").onchange=()=>renderBoardHist();
   el.querySelector("#histUndo").onclick=async()=>{if(!guard())return;const w=el.querySelector("#boardHist");const sel=[...w.querySelectorAll("tbody tr.sel")].map(tr=>tr.dataset.grp);if(!sel.length)return warn("이력에서 줄을 고르세요");const ids=DB.d.moves.filter(m=>sel.includes(moveGrp(m))).map(m=>m.id);if(!await confirmBox(`이동 ${sel.length}건(기록 ${ids.length}줄)을 취소할까요? 재고가 되돌아갑니다.`))return;if(!await adminCheck("이동 취소"))return;DB.d.shipments=DB.d.shipments.filter(sh=>!DB.d.moves.some(m=>ids.includes(m.id)&&m.kind==="출하"&&m.ref_id===sh.id));DB.d.moves=DB.d.moves.filter(m=>!ids.includes(m.id));changed();toast(`${sel.length}건 취소`)};
 },function(){renderBoard();renderBoardCont();renderBoardHist()});
 /* 한 번의 이동 묶음 키 (같은 시각·구분·비고) */
@@ -576,8 +580,8 @@ function renderBoard(){const st=DB.stock();const heat=DB.stockVendor(P.HEAT),sur
   const ro=(txt,pop,cls,title,pn)=>`<td class="ro${cls?" "+cls:""}" data-pop="${pop}" data-pn="${esc(pn||"")}" title="${esc(title||"")}">${txt}</td>`;
   for(const m of DB.models()){const ps=DB.partsOfModel(m);
     const codes=[...new Set(ps.map(p=>DB.matCode(p.pn)))];let kg=0,sets=0;for(const c of codes){const k=mats[c]||0;kg+=k;const u=DB.matUnitKg(c);if(u)sets+=Math.floor(k/u)}
-    h+=`<tr class="model"><td class="lbl">${esc(m)} <small style="color:var(--ink-3);font-weight:400">기종</small></td>${ro(f1(kg)+" <small>kg</small>","matIn",kg<0?"warn":kg===0?"zero":"",codes.join(", ")+" · 누르면 소재 입고/사용",m)}${ro(fmt(sets),"matIn",sets===0?"zero":"","소재 kg ÷ 피치당 중량 · 누르면 소재 입고/사용",m)}${PRODS.map(pr=>cell(DB.q(st,m,pr,P.PRESS),m,P.PRESS,pr,"",'data-model="1"')).join("")}${"<td class=\"na\"></td>".repeat(nSub-4)}</tr>`;
-    for(const p of ps){const sf=p.surface==="유";h+=`<tr><td class="lbl" style="padding-left:18px">${esc(p.pn)} <small style="color:var(--ink-3);font-weight:400">${sf?"표O":"표X"}</small></td><td class="na">·</td><td class="na">·</td><td class="na">·</td><td class="na">·</td>`;
+    h+=`<tr class="model"><td class="lbl">${esc(m)} <small style="color:var(--ink-3);font-weight:400">기종</small>${mvBtns("model",m)}</td>${ro(f1(kg)+" <small>kg</small>","matIn",kg<0?"warn":kg===0?"zero":"",codes.join(", ")+" · 누르면 소재 입고/사용",m)}${ro(fmt(sets),"matIn",sets===0?"zero":"","소재 kg ÷ 피치당 중량 · 누르면 소재 입고/사용",m)}${PRODS.map(pr=>cell(DB.q(st,m,pr,P.PRESS),m,P.PRESS,pr,"",'data-model="1"')).join("")}${"<td class=\"na\"></td>".repeat(nSub-4)}</tr>`;
+    for(const p of ps){const sf=p.surface==="유";h+=`<tr><td class="lbl" style="padding-left:18px">${esc(p.pn)} <small style="color:var(--ink-3);font-weight:400">${sf?"표O":"표X"}</small>${mvBtns("part",p.pn)}</td><td class="na">·</td><td class="na">·</td><td class="na">·</td><td class="na">·</td>`;
       h+=PRODS.map(pr=>cell(vend(heat,p.pn,pr,HEAT_VENDOR),p.pn,P.HEAT,pr,HEAT_VENDOR)).join("");
       h+=sf?PRODS.map(pr=>cell(DB.q(st,p.pn,pr,P.HOLD),p.pn,P.HOLD,pr,"")).join(""):'<td class="na">-</td><td class="na">-</td>';
       for(const v of SURF_VENDORS)h+=sf?PRODS.map(pr=>cell(vend(surf,p.pn,pr,v),p.pn,P.SURF,pr,v)).join(""):'<td class="na">-</td><td class="na">-</td>';
@@ -588,7 +592,17 @@ function renderBoard(){const st=DB.stock();const heat=DB.stockVendor(P.HEAT),sur
       const r=rem[p.pn]||0;h+=ro(fmt(r),"orderNew",r>0?"":"zero","미출하 발주 잔량 · 누르면 주문 등록",p.pn)+"</tr>"}}
   h+="</tbody></table>";const w=$("#boardWrap");w.innerHTML=h;
   w.querySelectorAll("td.cell").forEach(td=>{td.oncontextmenu=e=>{e.preventDefault();boardMenu(e,td)};td.querySelector(".dots").onclick=e=>{e.stopPropagation();boardMenu(e,td)}});
-  w.querySelectorAll("td.ro").forEach(td=>td.onclick=()=>boardPop(td.dataset.pop,{pn:td.dataset.pn}))}
+  w.querySelectorAll("td.ro").forEach(td=>td.onclick=()=>boardPop(td.dataset.pop,{pn:td.dataset.pn}));
+  w.querySelectorAll("button[data-mv]").forEach(b=>b.onclick=e=>{e.stopPropagation();boardMove(b.dataset.kind,b.dataset.key,b.dataset.mv)})}
+/* 줄 순서 바꾸기: 기종은 기종끼리, 품번은 같은 기종 안에서. 순서는 기준의 정렬순서(sort)에 저장 → 모든 화면·서버에 같이 적용 */
+function mvBtns(kind,key){return`<span class="mv"><button type="button" data-mv="up" data-kind="${kind}" data-key="${esc(key)}" title="위로">▲</button><button type="button" data-mv="dn" data-kind="${kind}" data-key="${esc(key)}" title="아래로">▼</button></span>`}
+function boardGrouped(){const parts=DB.parts();const models=DB.models();return{models,groups:models.map(m=>parts.filter(p=>DB.modelOf(p.pn)===m))}}
+function boardApplyOrder(groups){let i=0;for(const g of groups)for(const p of g){const v=(++i)*10;if(p.sort!==v)p.sort=v}changed();if(!SCREENS.board?.el)return;renderBoard()}
+function boardMove(kind,key,dir){if(!guard())return;const{models,groups}=boardGrouped();const d=dir==="up"?-1:1;
+  if(kind==="model"){const i=models.indexOf(key),j=i+d;if(i<0||j<0||j>=groups.length)return;[groups[i],groups[j]]=[groups[j],groups[i]]}
+  else{const gi=groups.findIndex(g=>g.some(p=>p.pn===key));if(gi<0)return;const g=groups[gi];const i=g.findIndex(p=>p.pn===key),j=i+d;if(j<0||j>=g.length)return;[g[i],g[j]]=[g[j],g[i]]}
+  boardApplyOrder(groups)}
+function boardOrderReset(){const parts=[...DB.d.parts].sort((a,b)=>(excelIdx(a.pn)-excelIdx(b.pn))||a.pn.localeCompare(b.pn));boardApplyOrder([parts]);toast("엑셀 원본 순서로 정렬")}
 /* 컨테이너 선적 : 기준일 달, 컨테이너를 적은 출하만 묶어서 */
 function renderBoardCont(){const ymB=boardYm();const w=$("#boardCont");if(!w)return;$("#boardContSub").textContent=`${ymB.slice(0,4)}년 ${+ymB.slice(5)}월 · 컨테이너를 적은 출하만`;
   const g={};for(const x of DB.d.shipments){if(!x.container||x.date.slice(0,7)!==ymB)continue;const k=`${x.container}|${x.container_no||""}`;(g[k]??={container:x.container,no:x.container_no||"",dates:new Set(),cust:new Set(),items:{},box:0,memo:new Set(),ids:[]});const r=g[k];r.dates.add(x.date);r.cust.add(x.customer||"ATC");r.items[x.pn]=(r.items[x.pn]||0)+x.qty;const p=DB.part(x.pn);r.box+=p?boxes(x.qty,p.box_qty):0;if(x.memo)r.memo.add(x.memo);r.ids.push(x.id)}
