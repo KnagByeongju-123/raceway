@@ -251,7 +251,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 7.9</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 8.0</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -1252,7 +1252,7 @@ function monRows(){const y=$("#monYm").value;const d1=y+"-01";const carry={},qin
   for(const p of DB.parts())for(const prod of PRODS)for(const proc of DB.routeUsed(p.pn)){if(proc===P.PRESS)continue;const k=p.pn+"|"+prod+"|"+proc;const c=carry[k]||0,a=qin[k]||0,b=qout[k]||0;rows.push([p.pn,prod,proc,c,a,b,c+a-b])}return rows}
 
 /* ---------- 입력내역 ---------- */
-def("hist","이동 이력","보고서","이력","물류 보드에서 등록한 이동 이력 · 묶음 단위 취소",function(el){
+def("hist","이동 이력","현황","이력","물류 보드에서 등록한 이동 이력 · 묶음 단위 취소",function(el){
   el.innerHTML=`<div class="card" style="margin-top:12px"><h3>이동 이력 <span>최근 등록 순 · 줄을 누르면 선택</span><span class="h3btn"><label class="note">보기 <select id="histRange"><option value="today">오늘 등록</option><option value="3">최근 3일</option><option value="30">최근 30일</option><option value="all">전체</option></select></label><button class="btn sm danger" id="histUndo">선택 취소(삭제)</button><button class="btn sm" onclick="exportTable('#boardHist','이동이력')">⇩ 엑셀</button></span></h3><div id="boardHist"></div><div class="note">같은 번호(#)의 줄은 한 번의 이동(보낸 쪽 + 받는 쪽)이라 함께 취소됩니다. 취소하면 재고가 되돌아갑니다.</div></div>`;
   el.querySelector("#histUndo").onclick=async()=>{if(!guard())return;const w=el.querySelector("#boardHist");const sel=[...w.querySelectorAll("tbody tr.sel")].map(tr=>tr.dataset.grp);if(!sel.length)return warn("이력에서 줄을 고르세요");const ids=DB.d.moves.filter(m=>sel.includes(moveGrp(m))).map(m=>m.id);if(!await confirmBox(`이동 ${sel.length}건(기록 ${ids.length}줄)을 취소할까요? 재고가 되돌아갑니다.`))return;if(!await adminCheck("이동 취소"))return;DB.d.shipments=DB.d.shipments.filter(sh=>!DB.d.moves.some(m=>ids.includes(m.id)&&m.kind==="출하"&&m.ref_id===sh.id));DB.d.moves=DB.d.moves.filter(m=>!ids.includes(m.id));changed();toast(`${sel.length}건 취소`)};
   el.querySelector("#histRange").onchange=()=>renderBoardHist();
@@ -1414,7 +1414,7 @@ function bulkRun(id,aoa,ta){if(!guard())return;const b=BULK[id];const res=docume
   changed();if(id==="base")rebuildPnLists();res.className="res ok";res.textContent=`${rows.length}줄 등록했습니다.`;if(ta)ta.value="";toast(`${b.name} ${rows.length}줄 일괄 등록`)}
 
 /* ================== 앱 껍데기 (탭 · 메뉴) ================== */
-const MENU=[["물류 보드",["board","hist"]],["현황",["now"]],["ESG 연동",["sync"]],["주문·생산",["order","plan","prod"]],["외주·검사",["out","insp"]],["출하",["ship","deliv"]],["소재",["mat"]],["보고서",["move","mon","ledger"]],["기준",["base"]]];
+const MENU=[["물류 보드",["board"]],["현황",["now","hist"]],["ESG 연동",["sync"]],["주문·생산",["order","plan","prod"]],["외주·검사",["out","insp"]],["출하",["ship","deliv"]],["소재",["mat"]],["보고서",["move","mon","ledger"]],["기준",["base"]]];
 const openTabs=new Map();let activeId="";
 const allMenus=()=>{try{return !!localStorage.getItem("raceway.allMenus")}catch(e){return false}};
 function buildTop(){const ul=$("#topMenu");ul.innerHTML="";const ALL=allMenus();for(const[mod,ids]of MENU){const li=document.createElement("li");if(ids.includes(activeId))li.className="on";if(!ALL&&!ids.includes("board")){li.className+=" off";li.innerHTML=`<button disabled title="지금은 물류 보드만 씁니다 (오른쪽 끝 [전체 메뉴]로 켤 수 있음)">${esc(mod)}</button>`;ul.appendChild(li);continue}li.innerHTML=`<button>${esc(mod)}</button><div class="mega"><div class="col"><h4>${esc(mod)}</h4>${ids.map(id=>`<a class="${id===activeId?"active":""}" data-id="${id}"><span>${esc(SCREENS[id].title)}</span><small>${esc(SCREENS[id].desc)}</small></a>`).join("")}</div></div>`;li.querySelector("button").onclick=()=>{const was=li.classList.contains("pin");document.querySelectorAll(".top-menu>li.pin").forEach(x=>x.classList.remove("pin"));if(!was)li.classList.add("pin")};li.querySelectorAll("a").forEach(a=>a.onclick=()=>{openScreen(a.dataset.id);document.querySelectorAll(".top-menu>li.pin").forEach(x=>x.classList.remove("pin"))});ul.appendChild(li)}
