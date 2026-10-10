@@ -251,7 +251,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 6.5</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 6.6</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -289,7 +289,7 @@ const TABLES=["parts","orders","shipments","moves","materials","plans","delivery
 const ESG_CLOSE_TABLE="production_close";
 /* MES 코일 잔량 (stock_ledger 가 쓰는 Supabase 미러: raw_receipt = 코일 입고, raw_inventory = 투입 상태/사용중량) */
 const MES_URL="https://ebthltdmxpzlkfwvdloz.supabase.co",MES_KEY="sb_publishable_ZSgcZapb7cTgFezGmOV_ow_9MT15SnS";
-const MESC={at:0,coils:[],stock:null,unmapped:[],err:"",from:""};
+const MESC={at:0,coils:[],stock:null,unmapped:[],err:"",from:"",tbl:[],tblStock:null,src:""};
 const SBC_GAS_URL="https://script.google.com/macros/s/AKfycbwh0BIx1N4i7V0bxbEyohUuoJpaUJaFJ6V2RfENwIJXzTN2_UM6KGiJZURGcDQwkf0/exec";
 const TKEY={parts:"pn",settings:"key"};              /* 나머지는 id */
 const DATE_COLS={orders:["due_date","ship_date"]};   /* '' → null 로 보내는 날짜 칸 */
@@ -607,7 +607,7 @@ function renderBoard(){const st=DB.stock();const heat=DB.stockVendor(P.HEAT),sur
   const shipM={};for(const m of DB.d.moves)if(m.to_proc===P.SHIP&&inR(m.date)){const k=m.pn+"|"+m.prod;shipM[k]=(shipM[k]||0)+m.qty}
   const E=(src,tip)=>`<button type="button" class="rc eb" data-e="${src}" title="${tip}">E</button>`;
   /* 줄 = 품번 × INNER/OUTER (엑셀 재고조사표처럼). 공정마다 칸 하나. 소재·주문 막대는 두 줄 합침 */
-  const mesBtn=matSrcMes()?`<button type="button" class="rc eb" data-mes title="MES 코일 잔량 (최근 ${mesMonths()}개월 입고 중 미사용) · 누르면 코일 목록${MESC.unmapped.length?" · 소재코드 못 잡은 것 "+MESC.unmapped.length+"종":""}${MESC.err?" · 읽기 실패":""}">M${MESC.unmapped.length||MESC.err?" ⚠":""}</button>`:"";
+  const mesBtn=matSrcMes()?`<button type="button" class="rc eb" data-mes title="MES 소재 잔량 (${MESC.src||"읽는 중"}) · 누르면 코일 목록${MESC.unmapped.length?" · 소재코드 못 잡은 것 "+MESC.unmapped.length+"종":""}${MESC.err?" · 읽기 실패":""}">M${MESC.unmapped.length||MESC.err?" ⚠":""}</button>`:"";
   const svBtn=`<button type="button" class="rc eb" data-survey title="${matSrcMes()?"월말 소재 실사 (MES 코일 잔량과 대조용 · 재고 계산에는 안 들어감)":"월말 소재 실사: 소재코드별 실제 kg 을 한 번에 넣음"}">실사</button>`;
   const cols=[["g5",matSrcMes()?"소재 (MES 코일)":"소재 (기종)",["kg","환산 세트"],svBtn+mesBtn+(RCPT.n&&!matSrcMes()?`<button type="button" class="rc eb" data-rcpt title="ESG에 들어온 소재 입고 ${RCPT.n}건 (${f1(RCPT.kg)} kg) 아직 미등록 · 누르면 가져오기">🔔 ${RCPT.n}</button>`:"")],["g0","프레스",null,E("close","ESG 생산마감 가져오기 (전 기종)")],["g1","열처리",null],["g2","태진대기",null],...SURF_VENDORS.map(v=>["g3",SURF_VENDORS.length>1?`${v} 표면처리`:"표면처리",null]),["g4","검사대기",null,E("sbc","SBC 검사대기·검사완료 가져오기 (전 품번)")],["g6","검사완료",null,E("sbc","SBC 검사대기·검사완료 가져오기 (전 품번)")],["g7",`출하 누계 (${mon})`,null,E("ship","SBC 출하 확정 가져오기 (전 품번)")]];
   const showDone=$("#boardDone")?.checked;const plans={};const keyOpen={};for(const m of DB.models()){const pm=orderPlanModel(m,st);for(const pn in pm){plans[pn]=pm[pn];for(const x of pm[pn])keyOpen[x.key]=(keyOpen[x.key]||false)||x.state!=="done"}}
@@ -1159,9 +1159,14 @@ async function loadMesCoils(force){if(!matSrcMes())return;if(!force&&MESC.stock&
     const coils=mine.map(r=>{const rno=String(r.receipt_no||"").trim(),seq=Math.round(+r.seq||1);const iv=IV[rno+"|"+seq]||{st:"",usew:0,mc:""};const wt=Math.round((+r.weight||0)*10)/10;const rem=iv.st==="2"?0:Math.max(0,Math.round((wt-iv.usew)*10)/10);
       return{rno,seq,date:String(r.receipt_date||"").slice(0,10),raw:r.raw_item_code||"",heat:r.heat_no||"",sup:r.supplier||"",wt,usew:Math.round(iv.usew*10)/10,st:iv.st==="2"?"소진":iv.st==="1"?"사용중":"미개봉",mc:iv.mc,code:mesCoilCode(r.raw_item_code,codes,map),rem}});
     const stock={};const un={};for(const c of coils){if(!c.code){un[c.raw]=(un[c.raw]||0)+c.rem;continue}stock[c.code]=(stock[c.code]||0)+c.rem}
-    MESC.coils=coils;MESC.stock=stock;MESC.unmapped=Object.entries(un);MESC.err="";MESC.at=Date.now()}
+    /* MES 소재 재고 표(raw_stock = IMTL_RAW_MATERIAL_STOCK)가 있으면 그 값을 1순위로 */
+    let tbl=[];try{tbl=await mesFetchAll(`${MES_URL}/rest/v1/raw_stock?select=item_code,qty,qty_unit,stock_weight_kg,last_receipt_date,last_modify_date&order=item_code.asc`)}catch(e){tbl=[]}
+    tbl=tbl.filter(r=>map[r.item_code]||/^(S55C|S70C|C67S)/i.test(r.item_code||"")).map(r=>({raw:r.item_code,qty:+r.qty||0,unit:r.qty_unit||"",kg:+r.stock_weight_kg||0,last:r.last_receipt_date||"",mod:r.last_modify_date||"",code:mesCoilCode(r.item_code,codes,map)}));
+    const tst={};for(const r of tbl){if(!r.code){un[r.raw]=(un[r.raw]||0)+r.kg;continue}tst[r.code]=(tst[r.code]||0)+r.kg}
+    MESC.coils=coils;MESC.tbl=tbl;MESC.coilStock=stock;MESC.tblStock=tbl.length?tst:null;MESC.src=tbl.length?"재고표":"코일계산";MESC.stock=tbl.length?tst:stock;MESC.unmapped=Object.entries(un);MESC.err="";MESC.at=Date.now()}
   catch(e){MESC.err=e.message;console.error("MES 코일",e)}}
-function mesRecalc(){const codes=[...new Set(DB.parts().map(p=>DB.matCode(p.pn)))];const map=mapGet("map_raw");const stock={},un={};for(const c of MESC.coils){c.code=mesCoilCode(c.raw,codes,map);if(!c.code){un[c.raw]=(un[c.raw]||0)+c.rem;continue}stock[c.code]=(stock[c.code]||0)+c.rem}MESC.stock=stock;MESC.unmapped=Object.entries(un)}
+function mesRecalc(){const codes=[...new Set(DB.parts().map(p=>DB.matCode(p.pn)))];const map=mapGet("map_raw");const stock={},un={};for(const c of MESC.coils){c.code=mesCoilCode(c.raw,codes,map);if(!c.code){un[c.raw]=(un[c.raw]||0)+c.rem;continue}stock[c.code]=(stock[c.code]||0)+c.rem}
+  const tst={};for(const r of MESC.tbl||[]){r.code=mesCoilCode(r.raw,codes,map);if(!r.code){un[r.raw]=(un[r.raw]||0)+r.kg;continue}tst[r.code]=(tst[r.code]||0)+r.kg}MESC.coilStock=stock;MESC.tblStock=(MESC.tbl||[]).length?tst:null;MESC.stock=MESC.tblStock||stock;MESC.unmapped=Object.entries(un)}
 /* 월말 실사: 소재코드별 실제 kg 을 한 번에 넣음 → 그 날이 새 기준일 */
 function matSurveyPop(){const codes=[...new Set(DB.parts().map(p=>DB.matCode(p.pn)))].sort();const cur=DB.matStockManual();const d=today();const mr=monthRange(d);
   const rows=codes.map(c=>{const sp=DB.matSpec(c);const u=DB.matUnitKg(c);const base=DB.matBaseline(c);const mes=MESC.stock?MESC.stock[c]:null;return{c,sp,u,base,cur:cur[c]||0,mes}});
@@ -1178,7 +1183,8 @@ function mesCoilPop(){const codes=[...new Set(DB.parts().map(p=>DB.matCode(p.pn)
   openDlg("MES 코일 잔량",`최근 ${mesMonths()}개월 입고 코일 중 미사용 · 잔량 = 입고중량 − MES 사용중량`,`<div class="full note">불러오는 중…</div>`,async form=>{const n=Math.max(1,+form.months.value||6);if(n!==mesMonths()){DB.setSetting("mes_months",n);DB.save()}return true});
   const form=$("#dlgForm");const draw=()=>{const by={};for(const c of MESC.coils){if(!c.code)continue;const o=by[c.code]||(by[c.code]={n:0,wt:0,rem:0,use:0});o.n++;o.wt+=c.wt;o.rem+=c.rem;if(c.rem>0)o.use++}
     form.innerHTML=`<div class="full" style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span class="note">입고 기간</span><span class="note">최근</span><input name="months" class="num" value="${mesMonths()}" style="width:50px"><span class="note">개월 (${MESC.from||"-"} ~)</span><button type="button" class="btn sm" data-reload>다시 읽기</button>${MESC.err?`<span class="note" style="color:var(--red)">⚠ ${esc(MESC.err)}</span>`:""}</div>`+
-      `<div class="full note">소재코드별 잔량 (보드·현황의 소재 재고로 씀): `+(Object.keys(by).length?Object.entries(by).map(([c,o])=>`<b>${esc(c)}</b> ${f1(o.rem)} kg (코일 ${o.n}본 중 잔량 있음 ${o.use}본)`).join(" · "):"-")+`</div>`+
+      (MESC.tblStock?`<div class="full note"><b>MES 소재 재고 표</b> (IMTL_RAW_MATERIAL_STOCK · 보드·현황의 소재 재고로 씀): `+Object.entries(MESC.tblStock).map(([c,k])=>`<b>${esc(c)}</b> ${f1(k)} kg`).join(" · ")+` <span style="color:var(--ink-3)">· 품번별: `+MESC.tbl.filter(r=>r.code).map(r=>`${esc(r.raw)} ${fmt(r.qty)}${esc(r.unit)} ${f1(r.kg)}kg`).join(", ")+`</span></div>`:`<div class="full note" style="color:var(--amber)">MES 소재 재고 표(raw_stock)가 아직 없어 코일 계산값을 씁니다. mes_raw_sync.py 를 돌리면 재고 표가 올라옵니다.</div>`)+
+      `<div class="full note">코일 계산 잔량 (입고 − 사용${MESC.tblStock?" · 참고":" · 보드·현황의 소재 재고로 씀"}): `+(Object.keys(by).length?Object.entries(by).map(([c,o])=>`<b>${esc(c)}</b> ${f1(o.rem)} kg (코일 ${o.n}본 중 잔량 있음 ${o.use}본)`).join(" · "):"-")+`</div>`+
       (MESC.unmapped.length?`<div class="full note" style="color:var(--red)">소재코드를 못 잡은 MES 소재 ${MESC.unmapped.length}종 → 고르면 매핑이 저장됩니다: `+MESC.unmapped.map(([raw,kg])=>`${esc(raw)} (${f1(kg)}kg) <select data-rawmap="${esc(raw)}" style="min-width:80px"><option value="">소재?</option>${opt(codes)}</select>`).join(" · ")+`</div>`:"")+
       dlgTable([{h:"입고일",cls:"c"},{h:"MES 소재",cls:"l"},{h:"소재코드",cls:"c"},{h:"HEAT / 코일",cls:"l"},{h:"입고 kg"},{h:"사용 kg"},{h:"잔량 kg"},{h:"상태",cls:"c"},{h:"호기",cls:"c"},{h:"거래처",cls:"l"}],[...MESC.coils].sort((a,b)=>b.date.localeCompare(a.date)||a.rno.localeCompare(b.rno)).map(c=>({cls:c.rem<=0?"sub":c.code?"":"warn",v:[c.date,esc(c.raw),c.code||"?",esc(c.heat||c.rno),f1(c.wt),f1(c.usew),f1(c.rem),c.st,esc(c.mc||""),esc(c.sup||"")]})));
     form.querySelector("[data-reload]").onclick=async()=>{const n=Math.max(1,+form.months.value||6);DB.setSetting("mes_months",n);DB.save();form.innerHTML=`<div class="full note">불러오는 중…</div>`;await loadMesCoils(true);draw();if(SCREENS.board?.el)renderBoard()};

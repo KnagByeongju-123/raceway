@@ -16,8 +16,12 @@ MES(Oracle) 소재 입고·투입·실사용  →  Supabase(stock_ledger 프로�
                  unit_per_qty, use_weight, shot_qty, normal_shot, abnormal_shot
   raw_inventory: receipt_no, receipt_seq, heat_no, stock_status(1 장착중 / 2 투입완료 / 0 미투입), put_on_date, put_out_date,
                  issue_date, unit_weight, use_weight, item_code, machine_code, shot_qty
-    · 투입현황은 MES 에 같은 표가 없으면 입고(NET_WEIGHT) − 실사용(USE_WEIGHT 합) 으로 계산한다.
+    · 투입현황은 입고(NET_WEIGHT) − 실사용(USE_WEIGHT 합) 으로 계산한다.
       잔량 0.5kg 이하 → 2(완료), 불출(IMTL_RAW_MATERIAL_ISSUE)됐고 잔량 남음 → 1(장착중), 그 외 0.
+  raw_stock    : MES 소재 재고 표 IMTL_RAW_MATERIAL_STOCK 그대로 (item_code, qty, qty_unit, stock_weight_kg, last_receipt_date, last_modify_date)
+                 → RACEWAY 앱의 "소재 잔량" 은 이 표를 1순위로 쓴다 (MES 관리도구 ⑤ 소재 관리가 맞춰 두는 값)
+  raw_stock_lot: IMTL_RAW_MATERIAL_STOCK_LOT 그대로 (receipt_no, receipt_seq, heat_no, item_code, qty, unit_weight, total_weight, enter_date)
+  입고 NET_WEIGHT 가 g 단위인 MES 도 있어 최근 1년 중앙값이 50,000 이상이면 g 로 보고 kg 로 바꾼다 (MES 관리도구와 같은 판정).
 """
 import argparse
 import json
@@ -46,11 +50,21 @@ create table if not exists raw_use (
   use_key text primary key, use_date date, machine_code text, item_code text, item_name text, raw_item_code text,
   heat_no text, receipt_no text, receipt_seq integer, unit_per_qty numeric, use_weight numeric, shot_qty integer,
   normal_shot integer, abnormal_shot integer, start_date timestamptz, end_date timestamptz, synced_at timestamptz default now());
+create table if not exists raw_stock (
+  item_code text primary key, qty numeric, qty_unit text, stock_weight_kg numeric, last_receipt_date date,
+  last_modify_date timestamptz, synced_at timestamptz default now());
+create table if not exists raw_stock_lot (
+  receipt_no text not null, receipt_seq integer not null default 1, heat_no text, item_code text, qty numeric,
+  unit_weight numeric, total_weight numeric, enter_date timestamptz, last_modify_date timestamptz,
+  synced_at timestamptz default now(), primary key (receipt_no, receipt_seq));
 create table if not exists raw_inventory (
   receipt_no text not null, receipt_seq integer not null default 1, heat_no text, stock_status text, put_on_date date,
   put_out_date date, issue_date date, unit_weight numeric, use_weight numeric, item_code text, machine_code text,
   shot_qty integer, synced_at timestamptz default now(), primary key (receipt_no, receipt_seq));
 alter table raw_receipt enable row level security;  alter table raw_use enable row level security;  alter table raw_inventory enable row level security;
+alter table raw_stock enable row level security;  alter table raw_stock_lot enable row level security;
+create policy anon_all on raw_stock for all using (true) with check (true);
+create policy anon_all on raw_stock_lot for all using (true) with check (true);
 create policy anon_all on raw_receipt for all using (true) with check (true);
 create policy anon_all on raw_use for all using (true) with check (true);
 create policy anon_all on raw_inventory for all using (true) with check (true);
@@ -96,6 +110,40 @@ def ts(x):
     return x.isoformat() if isinstance(x, datetime) else None
 
 
+_UNIT = {"g": False}
+
+
+def detect_unit(cur):
+    """입고 순중량이 g 인지: 최근 1년 중앙값 50,000 이상이면 g (MES 관리도구와 동일)"""
+    try:
+        cur.execute("SELECT MEDIAN(NET_WEIGHT) FROM IMTL_RAW_MATERIAL_RECEIPT WHERE IO_FLAG = 1 AND NET_WEIGHT > 0 AND RECEIPT_DATE >= SYSDATE - 365")
+        med = cur.fetchone()[0]
+        _UNIT["g"] = bool(med and med >= 50000)
+    except Exception:
+        _UNIT["g"] = False
+
+
+def kg(v):
+    v = float(v or 0)
+    return v / 1000 if _UNIT["g"] else v
+
+
+def fetch_stock(cur):
+    cur.execute("""SELECT S.ITEM_CODE, NVL(S.QTY,0), S.QTY_UNIT, NVL(S.STOCK_WEIGHT_KG,0), S.LAST_RECEIPT_DATE, S.LAST_MODIFY_DATE
+                     FROM IMTL_RAW_MATERIAL_STOCK S""")
+    return [{"item_code": (r[0] or "").strip(), "qty": float(r[1]), "qty_unit": r[2] or "", "stock_weight_kg": float(r[3]),
+             "last_receipt_date": d(r[4]), "last_modify_date": ts(r[5]), "synced_at": datetime.now().isoformat()} for r in cur.fetchall()]
+
+
+def fetch_stock_lot(cur):
+    cur.execute("""SELECT L.RECEIPT_NO, NVL(L.RECEIPT_SEQ,1), L.HEAT_NO, L.ITEM_CODE, NVL(L.QTY,0), L.UNIT_WEIGHT, L.TOTAL_WEIGHT,
+                          L.ENTER_DATE, L.LAST_MODIFY_DATE
+                     FROM IMTL_RAW_MATERIAL_STOCK_LOT L""")
+    return [{"receipt_no": str(r[0]).strip(), "receipt_seq": int(r[1] or 1), "heat_no": (r[2] or "").strip(),
+             "item_code": (r[3] or "").strip(), "qty": float(r[4]), "unit_weight": kg(r[5]), "total_weight": kg(r[6]),
+             "enter_date": ts(r[7]), "last_modify_date": ts(r[8]), "synced_at": datetime.now().isoformat()} for r in cur.fetchall()]
+
+
 def fetch_receipts(cur, since):
     cur.execute("""
         SELECT R.RECEIPT_NO, NVL(R.SEQ,1), R.RECEIPT_DATE, R.ITEM_CODE, R.HEAT_NO, NVL(R.NET_WEIGHT,0),
@@ -108,7 +156,7 @@ def fetch_receipts(cur, since):
     for r in cur.fetchall():
         out.append({"receipt_no": str(r[0]).strip(), "seq": int(r[1] or 1), "receipt_date": d(r[2]),
                     "raw_item_code": (r[3] or "").strip(), "item_spec": r[8] or "", "heat_no": (r[4] or "").strip(),
-                    "weight": float(r[5] or 0), "vendor_site_id": r[6] or "", "supplier": r[6] or "",
+                    "weight": kg(r[5]), "vendor_site_id": r[6] or "", "supplier": r[6] or "",
                     "io_flag": str(r[7] or "1"), "synced_at": datetime.now().isoformat()})
     return out
 
@@ -196,15 +244,30 @@ def main():
     conn = base.ora()
     try:
         cur = conn.cursor()
+        detect_unit(cur)
         rcv = fetch_receipts(cur, since)
         uses = fetch_uses(cur, since)
         _, _, inv = build_inventory(cur, inv_since)
+        stock, lots = [], []
+        try:
+            stock = fetch_stock(cur)
+            lots = fetch_stock_lot(cur)
+        except Exception as e:
+            print(f"[MES 코일] 재고표(STOCK/STOCK_LOT) 읽기 실패 → 코일 계산만 올림: {e}")
         cur.close()
     finally:
         conn.close()
     n1 = upsert("raw_receipt", rcv, "receipt_no,seq")
     n2 = upsert("raw_use", uses, "use_key")
     n3 = upsert("raw_inventory", inv, "receipt_no,receipt_seq")
+    n4 = n5 = 0
+    if stock:
+        sb("raw_stock?item_code=neq.", "DELETE", prefer="return=minimal")        # 전체 바꿔치기
+        n4 = upsert("raw_stock", stock, "item_code")
+    if lots:
+        sb("raw_stock_lot?receipt_no=neq.", "DELETE", prefer="return=minimal")
+        n5 = upsert("raw_stock_lot", lots, "receipt_no,receipt_seq")
+    print(f"[MES 코일] 재고표 {n4}품번 ({sum(x['stock_weight_kg'] for x in stock):,.1f} kg) · 재고LOT {n5}건 · 입고 단위 {'g→kg' if _UNIT['g'] else 'kg'}")
     live = sum(1 for x in inv if x["stock_status"] != "2")
     kg = sum(x["unit_weight"] - x["use_weight"] for x in inv if x["stock_status"] != "2")
     print(f"[MES 코일] 입고 {n1}건 · 사용 {n2}건 · 투입현황 {n3}본 (잔량 있는 코일 {live}본 · {kg:,.1f} kg) → {SB_URL}")
