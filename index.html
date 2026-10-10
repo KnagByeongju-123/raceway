@@ -251,7 +251,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 5.2</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 5.3</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -606,7 +606,7 @@ function renderBoard(){const st=DB.stock();const heat=DB.stockVendor(P.HEAT),sur
   const cols=[["g5","소재 (기종)",["kg","환산 세트"],RCPT.n?`<button type="button" class="rc eb" data-rcpt title="ESG에 들어온 소재 입고 ${RCPT.n}건 (${f1(RCPT.kg)} kg) 아직 미등록 · 누르면 가져오기">🔔 ${RCPT.n}</button>`:""],["g0","태진 PRESS (기종 세트)",null,E("close","ESG 생산마감 가져오기 (전 기종)")],["g1",`${HEAT_VENDOR} 열처리`,null],["g2","태진 사내대기",null],...SURF_VENDORS.map(v=>["g3",`${v} 표면처리`,null]),["g4","태진 검사대기",null,E("sbc","SBC 검사대기·검사완료 가져오기 (전 품번)")],["g6","출하대기 (검사완료·포장)",null,E("sbc","SBC 검사대기·검사완료 가져오기 (전 품번)")],["g7",`출하 누계 (${mon})`,null,E("ship","SBC 출하 확정 가져오기 (전 품번)")]];
   const showDone=$("#boardDone")?.checked;const plans={};const keyOpen={};for(const m of DB.models()){const pm=orderPlanModel(m,st);for(const pn in pm){plans[pn]=pm[pn];for(const x of pm[pn])keyOpen[x.key]=(keyOpen[x.key]||false)||x.state!=="done"}}
   const rkeys=Object.keys(keyOpen).filter(k=>showDone||keyOpen[k]).sort((a,b)=>{const[ya,ra]=a.split("|"),[yb,rb]=b.split("|");return ya.localeCompare(yb)||(+ra)-(+rb)});const closed=closedRounds();
-  cols.push(["g9","주문 · 차수별 달성 (▮ 출하 · ▯ 출하대기 · ▒ 검사대기 · ▬ 검은선 표면처리 · ▬ 빨간선 열처리 · ▒ PRESS · ▒ 소재 · 위 INNER / 아래 OUTER)",[...rkeys.map(k=>{const isC=!!closed[k],open=keyOpen[k];return`<span class="rk${open?"":" off"}">${esc(roundLabel(k))}</span>`+(isC?`<button type="button" class="rc" data-reopen="${esc(k)}" title="종료 취소">재개</button>`:open?`<button type="button" class="rc" data-close="${esc(k)}" title="이 차수를 종료 (남은 잔량은 포기, 완료로 취급)">종료</button>`:`<span class="rc done">완료</span>`)}),`<button type="button" class="rc add" id="roundAdd" title="새 차수 주문 등록">＋ 차수 추가</button>`]]);
+  cols.push(["g9","주문 · 차수별 달성 (▮ 출하 · ▯ 출하대기 · ▒ 검사대기 · 빈칸 열처리·표면처리 · ▒ PRESS · ▒ 소재 · 위 INNER / 아래 OUTER)",[...rkeys.map(k=>{const isC=!!closed[k],open=keyOpen[k];return`<span class="rk${open?"":" off"}">${esc(roundLabel(k))}</span>`+(isC?`<button type="button" class="rc" data-reopen="${esc(k)}" title="종료 취소">재개</button>`:open?`<button type="button" class="rc" data-close="${esc(k)}" title="이 차수를 종료 (남은 잔량은 포기, 완료로 취급)">종료</button>`:`<span class="rc done">완료</span>`)}),`<button type="button" class="rc add" id="roundAdd" title="새 차수 주문 등록">＋ 차수 추가</button>`]]);
   const nCol=cols.reduce((a,c)=>a+(c[2]?c[2].length:1),0);
   let h=`<table class="board io"><thead><tr><th class="g0" rowspan="2" style="left:0;z-index:3">기종 / 품번</th><th class="g0 prd" rowspan="2">제품</th>${cols.map(c=>c[2]?`<th class="${c[0]}" colspan="${c[2].length}">${esc(c[1])}${c[3]||""}</th>`:`<th class="${c[0]}" rowspan="2">${esc(c[1])}${c[3]||""}</th>`).join("")}</tr><tr>${cols.map(c=>c[2]?c[2].map(x=>`<th class="${c[0]} sub">${x}</th>`).join(""):"").join("")}</tr></thead><tbody>`;
   const cell=(q,pn,proc,prod,vendor,extra)=>`<td class="cell${q<0?" neg":q===0?" zero":""}" data-pn="${esc(pn)}" data-proc="${proc}" data-prod="${prod}" data-vendor="${esc(vendor||"")}" ${extra||""}>${fmt(q)}<span class="dots">⋯</span></td>`;
@@ -654,8 +654,8 @@ function orderPlanModel(model,st){const parts=DB.partsOfModel(model);const pnSet
 function orderPlan(pn,st){return orderPlanModel(DB.modelOf(pn),st)[pn]||[]}
 const kfmt=n=>n>=10000?Math.round(n/1000)+"k":n>=1000?(Math.round(n/100)/10)+"k":String(Math.round(n));
 function orderBars(plan){if(!plan.length)return`<span class="obars"><span class="ob none">·</span></span>`;
-  const row=(o,x,cls)=>{const q=o.qty||1;let acc=Math.min(100,x.sh/q*100);const seg=(k,c)=>{const w=Math.min(100-acc,(x[k]||0)/q*100);const h=`<i class="${c}" style="left:${acc}%;width:${w}%"></i>`;acc+=w;return h};
-    return`<span class="orow ${cls} ${x.state}"><i class="f" style="width:${Math.min(100,x.sh/q*100)}%"></i>${seg("can","a")}${seg("wt","w")}${seg("ws","ls")}${seg("wh","lh")}${seg("wp","p")}${seg("mt","m")}</span>`};
+  const row=(o,x,cls)=>{const q=o.qty||1;let acc=Math.min(100,x.sh/q*100);const seg=(k,c)=>{const w=Math.min(100-acc,(x[k]||0)/q*100);const h=`<i class="${c}" style="left:${acc}%;width:${w}%"></i>`;acc+=w;return h};const skip=k=>{acc+=Math.min(100-acc,(x[k]||0)/q*100);return""};
+    return`<span class="orow ${cls} ${x.state}"><i class="f" style="width:${Math.min(100,x.sh/q*100)}%"></i>${seg("can","a")}${seg("wt","w")}${skip("ws")}${skip("wh")}${seg("wp","p")}${seg("mt","m")}</span>`};
   return`<span class="obars">`+plan.map(x=>{const o=x.o;const sI=x.pr.INNER.sh,sO=x.pr.OUTER.sh;const lab=(sI===sO?kfmt(sI):`${kfmt(sI)}·${kfmt(sO)}`)+`/${kfmt(o.qty)}`+(custName(o.customer)!==CUSTOMERS[0]?" "+custName(o.customer):"");
     const det=p=>{const y=x.pr[p];return`${p}: 출하 ${fmt(y.sh)} · 잔량 ${fmt(y.rem)} · 출하대기 ${fmt(y.can)} + 검사대기 ${fmt(y.wt)}${DB.hasSurf(o.pn)?` + 표면처리·사내대기 ${fmt(y.ws)}`:""} + 열처리 ${fmt(y.wh)} + PRESS ${fmt(y.wp)} + 소재 ${fmt(y.mt)}`+(y.left-y.mt>0?` · 부족 ${fmt(y.left-y.mt)}`:"")};
     const T={done:x.closed?"차수 종료 (잔량 포기)":"완료",ok:"달성 가능 (출하대기 재고로 잔량 충당)",wait:"달성 가능 (검사대기까지 포함)",proc:"달성 가능 (열처리·표면처리 진행분까지 포함)",wip:"달성 가능 (PRESS 재고까지 포함)",mat:"소재까지 쓰면 달성 가능",part:"일부 부족",no:"재고·소재 없음"}[x.state];
