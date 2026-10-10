@@ -249,7 +249,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 3.2</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 3.3</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -337,6 +337,7 @@ const DB={
   matCode(pn){const p=this.part(pn);return (p&&p.mat_code)||pn.split(" ")[0]},
   matStock(){const r={};for(const m of this.d.materials)r[m.mat_code]=(r[m.mat_code]||0)+(m.kg_in||0)-(m.kg_out||0);return r},
   matUnitKg(code){for(const p of this.parts())if(this.matCode(p.pn)===code&&p.unit_kg)return p.unit_kg;return 0},
+  matSpec(code){const ps=this.parts().filter(p=>this.matCode(p.pn)===code);const g=k=>{for(const p of ps)if(p[k])return p[k];return 0};return{mat_type:g("mat_type"),thick:g("thick"),width:g("width"),pitch:g("pitch"),sg:g("sg")||7.85}},
 };
 /* ================== Supabase 동기화 : 메모리(DB.d) ↔ 서버, 바뀐 줄만 보냄 ================== */
 const SB={
@@ -740,7 +741,7 @@ function boardPop(act,c){const d=validDate($("#boardDate")?.value)||today();cons
   const after=()=>{changed();renderBoard();renderBoardCont();renderBoardHist()};
   /* 소재 입고·사용 — 기종 줄 */
   if(act==="matIn"){const model=p?DB.modelOf(pn):pn;const codes=[...new Set(DB.partsOfModel(model).map(x=>DB.matCode(x.pn)))];if(!codes.length)return warn("기종의 소재코드가 없습니다");const mats=DB.matStock();
-    const f=`<label>일자</label><input type="date" name="date" value="${d}"><label>소재코드</label><select name="code">${opt(codes,codes[0])}</select><label>구분</label><select name="kind">${opt(["입고","사용","재고조정(실사)"],"입고")}</select><label>중량(kg)</label><input name="kg" class="num"><div class="hint">재고조정은 실제 잰 kg (그 값으로 맞춤)</div><label>비고</label><input name="memo"><div class="full note">${codes.map(cd=>{const u=DB.matUnitKg(cd);const kg=mats[cd]||0;return`${esc(cd)}: 재고 ${f1(kg)} kg`+(u?` ≈ ${fmt(Math.floor(kg/u))} 세트 (피치당 ${f1(u*1000)} g)`:" (피치당 중량 없음 → 기준 화면)")}).join("<br>")}</div>`;
+    const f=`<label>일자</label><input type="date" name="date" value="${d}"><label>소재코드</label><select name="code">${opt(codes,codes[0])}</select><label>구분</label><select name="kind">${opt(["입고","사용","재고조정(실사)"],"입고")}</select><label>중량(kg)</label><input name="kg" class="num"><div class="hint">재고조정은 실제 잰 kg (그 값으로 맞춤)</div><label>비고</label><input name="memo"><div class="full note">${codes.map(cd=>{const u=DB.matUnitKg(cd);const kg=mats[cd]||0;const sp=DB.matSpec(cd);return`${esc(cd)}: 재고 ${f1(kg)} kg`+(u?` ≈ ${fmt(Math.floor(kg/u))} 세트 (${esc(sp.mat_type||"")} ${sp.thick||"-"}T×${sp.width||"-"}W×P${sp.pitch||"-"} · 피치당 ${f1(u*1000)} g)`:" (피치당 중량 없음 → 소재 화면 [E 소재마스터 가져오기])")}).join("<br>")}</div>`;
     return openDlg("소재 입고 · 사용",`기종 ${esc(model)}`,f,async form=>{const dd=validDate(form.date.value),code=form.code.value;if(!dd||!code)return"일자와 소재코드를 확인하세요";let kg;try{kg=toNum(form.kg.value)}catch(e){return"kg 는 숫자만"}if(!kg&&form.kind.value!=="재고조정(실사)")return"kg 를 넣으세요";const k=form.kind.value;const id=DB.nextId("materials");
       if(k==="입고")DB.d.materials.push({id,date:dd,mat_code:code,kg_in:kg,kg_out:0,memo:form.memo.value});else if(k==="사용")DB.d.materials.push({id,date:dd,mat_code:code,kg_in:0,kg_out:kg,memo:form.memo.value});else{const cur=DB.matStock()[code]||0;const diff=kg-cur;DB.d.materials.push({id,date:dd,mat_code:code,kg_in:diff>0?diff:0,kg_out:diff<0?-diff:0,memo:`실사 ${f1(kg)}kg (조정 ${diff>=0?"+":""}${f1(diff)}) `+form.memo.value})}
       after();toast(`소재 ${k}: ${code} ${f1(kg)} kg`);return true})}
@@ -1025,16 +1026,33 @@ def("mat","소재","소재","소재","소재 kg 입출고 → 피치당 중량�
    <label>중량(kg)</label><input name="kg" class="num"><div class="hint">재고조정은 실제 잰 kg (그 값으로 맞춤)</div><label>비고</label><input name="memo">
    <div class="btns"><button class="btn pri" type="submit">등록</button><button class="btn danger" type="button" id="matDel">선택 삭제</button></div></form><div class="msg" id="matMsg"></div>
    <div class="note">환산 세트 = kg × 1000 ÷ 피치당 중량(g). 1피치 = INNER+OUTER 1세트.<br>피치당 중량은 기준 화면에서 두께·폭·피치·비중으로 계산.</div></div>
-  <div class="stack"><div class="card"><h3>소재 재고${xlBtns("#matTbl","소재재고")}</h3><div id="matTbl"></div></div><div class="card"><h3>소재 기록 <span>최근 200건</span>${xlBtns("#matLog","소재기록")}</h3><div id="matLog"></div></div>${bulkHTML("mat")}</div></div>`;
-  const f=el.querySelector("#matForm");f.code.onchange=()=>matHint();
+  <div class="stack"><div class="card"><h3>소재 재고 <span>재질·두께·폭·피치는 ESG 소재마스터(material_master_tj)에서 가져올 수 있음</span><span class="h3btn"><button class="btn sm pri" id="matMasterBtn" title="ESG 소재마스터(SKF SBC)에서 재질·두께·폭·피치를 읽어 피치당 중량을 맞춤">E 소재마스터 가져오기</button></span>${xlBtns("#matTbl","소재재고")}</h3><div id="matTbl"></div></div><div class="card"><h3>소재 기록 <span>최근 200건</span>${xlBtns("#matLog","소재기록")}</h3><div id="matLog"></div></div>${bulkHTML("mat")}</div></div>`;
+  const f=el.querySelector("#matForm");f.code.onchange=()=>matHint();el.querySelector("#matMasterBtn").onclick=()=>matMasterPop();
   f.onsubmit=e=>{e.preventDefault();if(!guard())return;const d=validDate(f.date.value),code=f.code.value;if(!d||!code)return warn("일자와 소재코드를 확인하세요");let kg;try{kg=toNum(f.kg.value)}catch(e){return warn("kg 는 숫자만")}const k=f.kind.value;const id=DB.nextId("materials");
     if(k==="입고")DB.d.materials.push({id,date:d,mat_code:code,kg_in:kg,kg_out:0,memo:f.memo.value});else if(k==="사용")DB.d.materials.push({id,date:d,mat_code:code,kg_in:0,kg_out:kg,memo:f.memo.value});else{const cur=DB.matStock()[code]||0;const diff=kg-cur;DB.d.materials.push({id,date:d,mat_code:code,kg_in:diff>0?diff:0,kg_out:diff<0?-diff:0,memo:`실사 ${f1(kg)}kg (조정 ${diff>=0?"+":""}${f1(diff)}) `+f.memo.value})}
     f.kg.value="";changed();matHint()};
   el.querySelector("#matDel").onclick=async()=>{if(!guard())return;const ids=selIds(el.querySelector("#matLog"));if(!ids.length)return warn("기록에서 줄을 고르세요");if(await confirmBox(`${ids.length}건 지울까요?`)){DB.d.materials=DB.d.materials.filter(m=>!ids.includes(m.id));changed()}};
 },function(){const codes=[...new Set(DB.parts().map(p=>DB.matCode(p.pn)))].sort();const f=$("#matForm");const cur=f.code.value;f.code.innerHTML=opt(codes,cur||codes[0]);
   const st=DB.matStock();const mo={};for(const m of DB.d.materials)if(m.date.slice(0,7)===ym()){(mo[m.mat_code]??=[0,0]);mo[m.mat_code][0]+=m.kg_in||0;mo[m.mat_code][1]+=m.kg_out||0}
-  $("#matTbl").innerHTML=tbl([{h:"소재코드",cls:"c"},{h:"쓰는 품번",cls:"l"},{h:"피치당 g"},{h:"재고 kg"},{h:"환산 세트"},{h:"이번달 입고 kg"},{h:"이번달 사용 kg"}],codes.map(c=>{const u=DB.matUnitKg(c);const kg=st[c]||0;const[a,b]=mo[c]||[0,0];return{cls:kg<0?"warn":"",v:[c,DB.parts().filter(p=>DB.matCode(p.pn)===c).map(p=>p.pn).join(", "),u?f1(u*1000):"",f1(kg),u?Math.floor(kg/u):"",f1(a),f1(b)]}}));
+  $("#matTbl").innerHTML=tbl([{h:"소재코드",cls:"c"},{h:"쓰는 품번",cls:"l"},{h:"재질",cls:"c"},{h:"두께 T"},{h:"폭 W"},{h:"피치 P"},{h:"피치당 g"},{h:"재고 kg"},{h:"환산 세트"},{h:"이번달 입고 kg"},{h:"이번달 사용 kg"}],codes.map(c=>{const u=DB.matUnitKg(c);const kg=st[c]||0;const[a,b]=mo[c]||[0,0];const sp=DB.matSpec(c);return{cls:kg<0?"warn":"",v:[c,DB.parts().filter(p=>DB.matCode(p.pn)===c).map(p=>p.pn).join(", "),esc(sp.mat_type||""),sp.thick?String(sp.thick):"",sp.width?String(sp.width):"",sp.pitch?String(sp.pitch):"",u?f1(u*1000):"",f1(kg),u?Math.floor(kg/u):"",f1(a),f1(b)]}}));
   const w=$("#matLog");w.innerHTML=tbl([{h:"ID",cls:"c"},{h:"일자",cls:"c"},{h:"소재코드",cls:"c"},{h:"입고 kg"},{h:"사용 kg"},{h:"비고",cls:"l"}],[...DB.d.materials].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).slice(0,200).map(m=>({id:m.id,v:[m.id,m.date,m.mat_code,m.kg_in?f1(m.kg_in):"",m.kg_out?f1(m.kg_out):"",esc(m.memo)]})));selectable(w);matHint()});
+/* ESG 소재마스터(material_master_tj, 같은 SmartFactory 프로젝트) → 소재코드별 재질·두께·폭·피치 → 피치당 g = T×W×P×비중÷1000
+   mapped_models "1106-2" → 기종 1106 → 그 기종 품번들의 소재코드. 다른 것만 보여주고 체크해서 적용 */
+async function matMasterPop(){if(!SB_ON)return warn("서버(Supabase) 연결이 아니라 ESG 소재마스터를 못 읽습니다");
+  openDlg("ESG 소재마스터 가져오기","SKF SBC 소재 · 재질 · 두께 · 폭 · 피치 → 피치당 중량 · 다른 것만",`<div class="full note">불러오는 중…</div>`,async form=>{const rows=(form._rows||[]).filter(x=>selIds(form).includes(x.i));if(!rows.length)return"적용할 줄을 고르세요";
+    if(!await confirmBox(`소재 ${rows.length}개의 재질·두께·폭·피치·피치당 중량을 ESG 값으로 바꿀까요?\n`+rows.map(x=>`${x.code}: ${x.pick.material_type} ${x.pick.thickness}T × ${x.pick.width}W × P${x.pick.pitch} = ${f1(x.pick.g)} g (지금 ${x.cur.g?f1(x.cur.g)+" g":"없음"})`).join("\n")))return null;if(!await adminCheck("소재마스터 적용"))return null;
+    for(const x of rows)for(const p of DB.parts()){if(DB.matCode(p.pn)!==x.code)continue;p.mat_type=x.pick.material_type||p.mat_type;p.thick=+x.pick.thickness||0;p.width=+x.pick.width||0;p.pitch=+x.pick.pitch||0;p.sg=+x.pick.specific_gravity||7.85;p.unit_kg=x.pick.g/1000}
+    changed();toast(`소재마스터 ${rows.length}개 적용`);return true});
+  const form=$("#dlgForm");$("#dlgYes").textContent="적용";
+  try{const r=await fetch(`${SB_URL}/rest/v1/material_master_tj?select=id,material_name,material_type,thickness,width,pitch,mapped_models,customer,mold_number,specific_gravity,unit_weight&order=mapped_models.asc`,{headers:SB.hdr()});if(!r.ok)throw new Error(r.status);const all=(await r.json()).filter(m=>/SBC/i.test(m.customer||"")||DB.models().some(md=>String(m.mapped_models||"").split(/[-\s]/)[0]===md));
+    const codes=[...new Set(DB.parts().map(p=>DB.matCode(p.pn)))].sort();
+    const rows=codes.map((code,i)=>{const models=[...new Set(DB.parts().filter(p=>DB.matCode(p.pn)===code).map(p=>DB.modelOf(p.pn)))];const cands=all.filter(m=>models.includes(String(m.mapped_models||"").split(/[-\s]/)[0])).map(m=>{const g=+m.unit_weight||pitchG(m.thickness,m.width,m.pitch,m.specific_gravity);return{...m,g}});
+      const cur=DB.matSpec(code);cur.g=(DB.matUnitKg(code)||0)*1000;const pick=cands[0]||null;const same=pick&&Math.abs(pick.g-cur.g)<0.05&&+pick.thickness===+cur.thick&&+pick.width===+cur.width&&+pick.pitch===+cur.pitch;return{i,code,models,cands,pick,cur,same}});
+    const show=rows.filter(x=>x.cands.length&&!x.same);const none=rows.filter(x=>!x.cands.length);form._rows=show;
+    const draw=()=>{form.innerHTML=`<div class="full note">소재 ${rows.length}개 중 <b>다른 것 ${show.length}개</b> · 같은 ${rows.filter(x=>x.same).length}개 생략${none.length?` · ESG 에 없는 소재 ${none.length}개 (${none.map(x=>x.code).join(", ")})`:""}. 같은 기종에 ESG 소재가 여러 줄이면 (금형별) 쓸 줄을 고르세요. 피치당 g = T×W×P×비중÷1000 (ESG 에 단중이 있으면 그 값).</div>`+(show.length?dlgTable([{h:CHK,cls:"c"},{h:"소재코드",cls:"c"},{h:"기종",cls:"c"},{h:"ESG 소재 (금형)",cls:"l"},{h:"재질",cls:"c"},{h:"T"},{h:"W"},{h:"P"},{h:"ESG 피치당 g"},{h:"지금 피치당 g"},{h:"지금 T×W×P",cls:"c"},{h:"차이"}],show.map(x=>({id:x.i,cls:"diff",v:[`<input type="checkbox" data-chk>`,x.code,x.models.join(", "),x.cands.length>1?`<select data-mm="${x.i}">${x.cands.map((c,j)=>`<option value="${j}"${c===x.pick?" selected":""}>${esc(c.material_name)} · ${esc(c.mold_number||"")} ${esc(c.mapped_models||"")}</option>`).join("")}</select>`:`${esc(x.pick.material_name)} · ${esc(x.pick.mold_number||"")}`,esc(x.pick.material_type||""),x.pick.thickness,x.pick.width,x.pick.pitch,f1(x.pick.g),x.cur.g?f1(x.cur.g):"",`${x.cur.thick||"-"}×${x.cur.width||"-"}×${x.cur.pitch||"-"}`,x.cur.g?f1(x.pick.g-x.cur.g):""]}))):`<div class="full note">ESG 소재마스터와 모두 같습니다.</div>`);
+      dlgCheckRows(form,show.map(x=>String(x.i)));
+      form.querySelectorAll("select[data-mm]").forEach(sl=>{sl.onclick=e=>e.stopPropagation();sl.onchange=()=>{const x=show.find(y=>String(y.i)===sl.dataset.mm);x.pick=x.cands[+sl.value];const sel=selIds(form);draw();form.querySelectorAll("tbody tr[data-id]").forEach(tr=>{const on=sel.includes(+tr.dataset.id);tr.classList.toggle("sel",on);const cb=tr.querySelector("[data-chk]");if(cb)cb.checked=on})}})};draw()}
+  catch(e){form.innerHTML=`<div class="full note">⚠ 수집 실패: ${esc(e.message)}</div>`}}
 function matHint(){const f=$("#matForm");if(!f)return;const c=f.code.value;const kg=DB.matStock()[c]||0;const u=DB.matUnitKg(c);$("#matMsg").textContent=`${c} 재고 ${f1(kg)} kg`+(u?` = 약 ${fmt(Math.floor(kg/u))} 세트 (피치당 ${f1(u*1000)} g)`:"  (피치당 중량 없음 → 기준 화면에 두께·폭·피치 넣으세요)")}
 
 /* ---------- 이동표 ---------- */
