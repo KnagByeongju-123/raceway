@@ -212,6 +212,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
 .toast.on{opacity:1}
 .modal-bg{position:fixed;inset:0;background:rgba(20,28,40,.45);display:none;align-items:center;justify-content:center;z-index:500}
 .modal-bg.on{display:flex}#modalBg{z-index:600}
+.modal.dlg{max-width:min(1200px,94vw);overflow:hidden}.dlg .form{min-width:0}.dlg .form .full.tw{min-width:0;max-width:100%;overflow:auto;white-space:nowrap}.dlg .form .full.tw table.g{min-width:max-content}
 .modal{background:#fff;border-radius:8px;padding:18px 20px;min-width:300px;max-width:min(560px,92vw);box-shadow:var(--shadow);white-space:pre-line;line-height:1.6}
 .modal .btns{justify-content:flex-end;margin-top:14px}
 @media (max-width:1000px){.lay{grid-template-columns:1fr}.home>.card{grid-column:span 12}}
@@ -249,12 +250,12 @@ table.g tr.warn td.sticky{background:#fff0ee}
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 4.0</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 4.1</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
 <div class="modal-bg" id="modalBg"><div class="modal"><div id="modalMsg"></div><div class="btns"><button class="btn" id="modalNo">취소</button><button class="btn pri" id="modalYes">확인</button></div></div></div>
-<div class="modal-bg" id="dlgBg"><div class="modal dlg" style="min-width:380px;max-width:min(860px,94vw)"><h3 id="dlgTitle" style="font-size:15px;font-weight:700"></h3><div id="dlgSub" class="note" style="margin-top:2px"></div><form class="form" id="dlgForm"></form><div class="msg" id="dlgMsg" style="display:none"></div><div class="btns"><button class="btn" type="button" id="dlgNo">취소</button><button class="btn pri" type="button" id="dlgYes">등록</button></div></div></div>
+<div class="modal-bg" id="dlgBg"><div class="modal dlg" style="min-width:380px"><h3 id="dlgTitle" style="font-size:15px;font-weight:700"></h3><div id="dlgSub" class="note" style="margin-top:2px"></div><form class="form" id="dlgForm"></form><div class="msg" id="dlgMsg" style="display:none"></div><div class="btns"><button class="btn" type="button" id="dlgNo">닫기</button><button class="btn pri" type="button" id="dlgYes">등록저장</button></div></div></div>
 <div class="ctx" id="ctxMenu"></div>
 
 <script>
@@ -812,8 +813,8 @@ function boardPop(act,c){const d=validDate($("#boardDate")?.value)||today();cons
         form.innerHTML=`<div class="full note">${esc(pn)} SBC 출하 확정 ${rows.length}줄 중 미등록 ${todo.length}줄 (같은 날 Inner/Outer는 출하 1건으로 묶임). 체크로 고르고 [등록] (머리글 체크 = 전체).</div>`+(todo.length?`<label>주문</label><select name="order"><option value="">(주문 없음)</option>${ords.map(o=>`<option value="${o.id}">${o.ym} ${o.round}차 잔량 ${fmt(o.qty-DB.shipped(o.id))}</option>`).join("")}</select><label>컨테이너</label><select name="container"><option value="">-</option>${opt(["20피트","40피트"])}</select><label>컨테이너 번호</label><input name="cno">`:"")+(rows.length?dlgTable([{h:CHK,cls:"c"},{h:"출하일",cls:"c"},{h:"SBC 품번",cls:"l"},{h:"제품",cls:"c"},{h:"수량"},{h:"LOT",cls:"l"},{h:"도착지",cls:"c"},{h:"상태",cls:"c"}],rows.map(x=>({id:x.i,cls:x.done?"sub":"",v:[x.done?DONE_CHK:`<input type="checkbox" data-chk>`,x.move_date,esc(x.base_part),x.prod,fmt(x.qty),esc(x.lot||""),esc(x.destination||""),x.done?"등록됨":"대기"]}))):`<div class="full note">해당 기간에 이 품번 출하 확정이 없습니다.</div>`);
         dlgCheckRows(form,todo.map(x=>String(x.i)))}
       catch(e){form.innerHTML=`<div class="full note">⚠ 수집 실패: ${esc(e.message)}</div>`}})();return}}
-function openDlg(title,sub,fieldsHTML,onSubmit){const bg=$("#dlgBg");$("#dlgTitle").textContent=title;$("#dlgSub").textContent=sub;$("#dlgYes").textContent="등록";dlgDrag(bg.querySelector(".modal"));const form=$("#dlgForm");form.innerHTML=fieldsHTML;const msg=$("#dlgMsg");msg.style.display="none";bg.classList.add("on");
-  const close=()=>bg.classList.remove("on");$("#dlgNo").onclick=close;$("#dlgYes").onclick=async()=>{if(!guard())return;const r=await onSubmit(form);if(r===true)close();else if(typeof r==="string"){msg.textContent="⚠ "+r;msg.style.display=""}};
+function openDlg(title,sub,fieldsHTML,onSubmit){const bg=$("#dlgBg");$("#dlgTitle").textContent=title;$("#dlgSub").textContent=sub;$("#dlgYes").textContent="등록저장";dlgDrag(bg.querySelector(".modal"));const form=$("#dlgForm");form.innerHTML=fieldsHTML;const msg=$("#dlgMsg");msg.style.display="none";bg.classList.add("on");
+  const close=()=>bg.classList.remove("on");$("#dlgNo").onclick=close;$("#dlgYes").onclick=async()=>{if(!guard())return;const r=await onSubmit(form);if(r===true){close();const t0=$("#toast").textContent;toast("✓ 저장됨"+(t0&&!t0.startsWith("✓")?" — "+t0:""))}else if(typeof r==="string"){msg.textContent="⚠ "+r;msg.style.display=""}};
   form.onkeydown=e=>{if(e.key==="Enter"&&e.target.tagName!=="TEXTAREA"){e.preventDefault();$("#dlgYes").click()}};setTimeout(()=>form.querySelector("input[name=qty_in]")?.focus(),50)}
 
 /* ---------- 현황 ---------- */
