@@ -244,7 +244,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 2.4</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 2.5</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -630,9 +630,22 @@ function boardDialog(act,c){const d=validDate($("#boardDate")?.value)||today();c
       if(DB.modelOf(pn)!==DB.modelOf(pn2)&&!await confirmBox(`${pn}(기종 ${DB.modelOf(pn)}) → ${pn2}(기종 ${DB.modelOf(pn2)}) 기종이 다릅니다. 그래도 바꿀까요?`))return null;if(!await confirmStock(pn,c.proc,qi,qo))return null;const kind="품번변경",tag=act==="changeReturn"?"품번조절복귀":"품번변경";
       for(const[prod,q]of[["INNER",qi],["OUTER",qo]])if(q)moves.push({date,pn,prod,from:c.proc,qty:q,vendor:c.vendor,kind,memo:`[${tag}] → ${pn2} ${proc2} ${form.memo.value}`},{date,pn:pn2,prod,to:proc2,qty:q,vendor:v2,kind,memo:`[${tag}] ← ${pn} ${c.proc} ${form.memo.value}`});msg=`${tag}: ${pn} ${c.proc} → ${pn2} ${proc2}`}
     for(const mv of moves)DB.addMove(mv);changed();toast(`${msg} INNER ${fmt(qi)} / OUTER ${fmt(qo)}`);return true})}
+/* 팝업 드래그 이동: 제목 줄(h3·부제)을 잡고 끌기. 열 때마다 가운데로 되돌림 */
+function dlgDrag(box){if(!box)return;box.style.transform="";const hd=[box.querySelector("h3"),box.querySelector(".note")].filter(Boolean);if(box._drag)return;box._drag=1;let sx,sy,ox=0,oy=0,on=false;
+  const mv=e=>{if(!on)return;const p=e.touches?e.touches[0]:e;const dx=p.clientX-sx,dy=p.clientY-sy;box.style.transform=`translate(${ox+dx}px,${oy+dy}px)`;e.preventDefault()};
+  const up=()=>{if(!on)return;on=false;const m=box.style.transform.match(/translate\((-?[\d.]+)px, ?(-?[\d.]+)px\)/);ox=m?+m[1]:0;oy=m?+m[2]:0;document.removeEventListener("mousemove",mv);document.removeEventListener("mouseup",up);document.removeEventListener("touchmove",mv);document.removeEventListener("touchend",up)};
+  const dn=e=>{if(e.target.tagName==="INPUT"||e.target.tagName==="BUTTON")return;const p=e.touches?e.touches[0]:e;sx=p.clientX;sy=p.clientY;const m=box.style.transform.match(/translate\((-?[\d.]+)px, ?(-?[\d.]+)px\)/);ox=m?+m[1]:0;oy=m?+m[2]:0;on=true;document.addEventListener("mousemove",mv);document.addEventListener("mouseup",up);document.addEventListener("touchmove",mv,{passive:false});document.addEventListener("touchend",up)};
+  for(const h of hd){h.style.cursor="move";h.style.userSelect="none";h.title="끌어서 이동";h.addEventListener("mousedown",dn);h.addEventListener("touchstart",dn,{passive:true})}}
 /* ---------- 보드 팝업 : 화면 안 옮기고 보드에서 바로 처리 ---------- */
 const POPS=["matIn","inspect","shipNew","shipEdit","orderNew","esgClose","sbcShip"];
-function dlgTable(cols,rows){return`<div class="full tw" style="max-height:40vh;margin:4px 0">${tbl(cols,rows,{nosort:true})}</div>`}
+function dlgTable(cols,rows){return`<div class="full tw" style="max-height:40vh;margin:4px 0">${tbl(cols,rows,{nosort:true}).replace(esc(CHK),CHK)}</div>`}
+/* 체크박스 열이 있는 표: 체크 ↔ 줄 선택(.sel) 동기화, 머리글 체크 = 전체 */
+const CHK=`<input type="checkbox" data-chkall title="전체 선택/해제">`;
+function dlgCheckRows(form,activeIds){const tb=form.querySelector("table.g");if(!tb)return;const all=tb.querySelector("thead [data-chkall]");const trs=[...tb.querySelectorAll("tbody tr[data-id]")];
+  const sync=()=>{if(!all)return;const act=trs.filter(tr=>tr.querySelector("[data-chk]"));all.checked=act.length>0&&act.every(tr=>tr.classList.contains("sel"));all.indeterminate=!all.checked&&act.some(tr=>tr.classList.contains("sel"))};
+  for(const tr of trs){const cb=tr.querySelector("[data-chk]");if(!cb)continue;const on=activeIds.includes(tr.dataset.id);cb.checked=on;tr.classList.toggle("sel",on);
+    const set=v=>{cb.checked=v;tr.classList.toggle("sel",v);sync()};cb.onclick=e=>{e.stopPropagation();set(cb.checked)};tr.onclick=e=>{if(["SELECT","INPUT","OPTION"].includes(e.target.tagName))return;set(!cb.checked)}}
+  if(all)all.onclick=e=>{e.stopPropagation();const v=all.checked;trs.forEach(tr=>{const cb=tr.querySelector("[data-chk]");if(cb){cb.checked=v;tr.classList.toggle("sel",v)}});sync()};sync()}
 function dlgSelectAll(sel){$("#dlgForm").querySelectorAll(sel+" tbody tr[data-id]").forEach(tr=>{tr.classList.add("sel");tr.onclick=e=>{if(["SELECT","INPUT"].includes(e.target.tagName))return;tr.classList.toggle("sel")}})}
 function boardPop(act,c){const d=validDate($("#boardDate")?.value)||today();const pn=c.pn||"";const p=DB.part(pn);const st=DB.stock();
   const after=()=>{changed();renderBoard();renderBoardCont();renderBoardHist()};
@@ -675,8 +688,8 @@ function boardPop(act,c){const d=validDate($("#boardDate")?.value)||today();cons
     (async()=>{const form=$("#dlgForm");try{const r=await fetch(`${SB_URL}/rest/v1/${ESG_CLOSE_TABLE}?select=ymd,machine_code,machine_name,item_code,item_name,mes_qty,actual_qty,closed_at&ymd=gte.${from}&ymd=lte.${d}&item_code=ilike.*BDA*&order=ymd.desc,machine_code.asc`,{headers:SB.hdr()});if(!r.ok)throw new Error(r.status);const all=await r.json();
         const done=new Set();for(const m of DB.d.moves)if(m.kind==="생산"&&m.memo&&m.memo.includes("[ESG ")){const t=m.memo.match(/\[ESG [^\]]+\]/);if(t)done.add(t[0])}
         const rows=all.map((x,i)=>({...x,i,tag:esgTag(x),model:esgModel(x.item_code),done:done.has(esgTag(x))})).filter(x=>x.model===model);const todo=rows.filter(x=>!x.done&&x.actual_qty);form._rows=todo;
-        form.innerHTML=`<div class="full note">기종 ${esc(model)} 생산마감 ${rows.length}건 중 미등록 ${todo.length}건 (등록된 줄은 회색). 줄을 눌러 선택을 바꾸고 [등록]. 기종이 안 잡히는 ESG 품번은 ESG 연동 화면에서 매핑하세요.</div>`+(rows.length?dlgTable([{h:"일자",cls:"c"},{h:"호기",cls:"c"},{h:"ESG 품번",cls:"l"},{h:"MES"},{h:"실제양품(set)"},{h:"상태",cls:"c"}],rows.map(x=>({id:x.i,cls:x.done?"sub":"",v:[x.ymd,`${x.machine_code} ${x.machine_name||""}`,esc(x.item_code),fmt(x.mes_qty),fmt(x.actual_qty),x.done?"등록됨":"대기"]}))):`<div class="full note">해당 기간에 이 기종 생산마감이 없습니다.</div>`);
-        form.querySelectorAll("tbody tr[data-id]").forEach(tr=>{const x=rows.find(y=>String(y.i)===tr.dataset.id);if(x&&!x.done&&x.actual_qty){tr.classList.add("sel");tr.onclick=()=>tr.classList.toggle("sel")}})}
+        form.innerHTML=`<div class="full note">기종 ${esc(model)} 생산마감 ${rows.length}건 중 미등록 ${todo.length}건 (등록된 줄은 회색). 체크로 고르고 [등록] (머리글 체크 = 전체). 기종이 안 잡히는 ESG 품번은 ESG 연동 화면에서 매핑하세요.</div>`+(rows.length?dlgTable([{h:CHK,cls:"c"},{h:"일자",cls:"c"},{h:"호기",cls:"c"},{h:"ESG 품번",cls:"l"},{h:"MES"},{h:"실제양품(set)"},{h:"상태",cls:"c"}],rows.map(x=>({id:x.i,cls:x.done?"sub":"",v:[x.done||!x.actual_qty?"":`<input type="checkbox" data-chk>`,x.ymd,`${x.machine_code} ${x.machine_name||""}`,esc(x.item_code),fmt(x.mes_qty),fmt(x.actual_qty),x.done?"등록됨":"대기"]}))):`<div class="full note">해당 기간에 이 기종 생산마감이 없습니다.</div>`);
+        dlgCheckRows(form,todo.map(x=>String(x.i)))}
       catch(e){form.innerHTML=`<div class="full note">⚠ 수집 실패: ${esc(e.message)}</div>`}})();return}
   /* SBC 출하 확정 가져오기 — 출하대기 칸 */
   if(act==="sbcShip"){if(!SB_ON)return warn("서버(Supabase) 연결이 아니라 SBC 수집을 못 합니다");const from=addDays(d,-14);
@@ -688,10 +701,10 @@ function boardPop(act,c){const d=validDate($("#boardDate")?.value)||today();cons
     (async()=>{const form=$("#dlgForm");try{const r=await fetch(`${SB_URL}/rest/v1/move_history_tj?select=id,move_date,move_time,base_part,lot,qty,destination&process=eq.출하&format=eq.레이스웨이출하&move_date=gte.${from}&move_date=lte.${d}&order=move_date.desc,id.desc`,{headers:SB.hdr()});if(!r.ok)throw new Error(r.status);const all=await r.json();
         const done=new Set();for(const m of DB.d.moves)if(m.memo&&m.memo.includes("[SBC출하 #")){const t=m.memo.match(/\[SBC출하 #\d+\]/);if(t)done.add(t[0])}
         const rows=all.map(x=>{const[p2,prod]=sbcPart(x.base_part||"");return{...x,i:x.id,tag:shipTag(x.id),pn:p2,prod,done:done.has(shipTag(x.id))}}).filter(x=>x.pn===pn&&x.prod);const todo=rows.filter(x=>!x.done);form._rows=todo;const ords=openOrdersOf(pn);
-        form.innerHTML=`<div class="full note">${esc(pn)} SBC 출하 확정 ${rows.length}줄 중 미등록 ${todo.length}줄 (같은 날 Inner/Outer는 출하 1건으로 묶임). 줄을 눌러 선택을 바꾸고 [등록].</div>`+(todo.length?`<label>주문</label><select name="order"><option value="">(주문 없음)</option>${ords.map(o=>`<option value="${o.id}">${o.ym} ${o.round}차 잔량 ${fmt(o.qty-DB.shipped(o.id))}</option>`).join("")}</select><label>컨테이너</label><select name="container"><option value="">-</option>${opt(["20피트","40피트"])}</select><label>컨테이너 번호</label><input name="cno">`:"")+(rows.length?dlgTable([{h:"출하일",cls:"c"},{h:"SBC 품번",cls:"l"},{h:"제품",cls:"c"},{h:"수량"},{h:"LOT",cls:"l"},{h:"도착지",cls:"c"},{h:"상태",cls:"c"}],rows.map(x=>({id:x.i,cls:x.done?"sub":"",v:[x.move_date,esc(x.base_part),x.prod,fmt(x.qty),esc(x.lot||""),esc(x.destination||""),x.done?"등록됨":"대기"]}))):`<div class="full note">해당 기간에 이 품번 출하 확정이 없습니다.</div>`);
-        form.querySelectorAll("tbody tr[data-id]").forEach(tr=>{const x=rows.find(y=>String(y.i)===tr.dataset.id);if(x&&!x.done){tr.classList.add("sel");tr.onclick=()=>tr.classList.toggle("sel")}})}
+        form.innerHTML=`<div class="full note">${esc(pn)} SBC 출하 확정 ${rows.length}줄 중 미등록 ${todo.length}줄 (같은 날 Inner/Outer는 출하 1건으로 묶임). 체크로 고르고 [등록] (머리글 체크 = 전체).</div>`+(todo.length?`<label>주문</label><select name="order"><option value="">(주문 없음)</option>${ords.map(o=>`<option value="${o.id}">${o.ym} ${o.round}차 잔량 ${fmt(o.qty-DB.shipped(o.id))}</option>`).join("")}</select><label>컨테이너</label><select name="container"><option value="">-</option>${opt(["20피트","40피트"])}</select><label>컨테이너 번호</label><input name="cno">`:"")+(rows.length?dlgTable([{h:CHK,cls:"c"},{h:"출하일",cls:"c"},{h:"SBC 품번",cls:"l"},{h:"제품",cls:"c"},{h:"수량"},{h:"LOT",cls:"l"},{h:"도착지",cls:"c"},{h:"상태",cls:"c"}],rows.map(x=>({id:x.i,cls:x.done?"sub":"",v:[x.done?"":`<input type="checkbox" data-chk>`,x.move_date,esc(x.base_part),x.prod,fmt(x.qty),esc(x.lot||""),esc(x.destination||""),x.done?"등록됨":"대기"]}))):`<div class="full note">해당 기간에 이 품번 출하 확정이 없습니다.</div>`);
+        dlgCheckRows(form,todo.map(x=>String(x.i)))}
       catch(e){form.innerHTML=`<div class="full note">⚠ 수집 실패: ${esc(e.message)}</div>`}})();return}}
-function openDlg(title,sub,fieldsHTML,onSubmit){const bg=$("#dlgBg");$("#dlgTitle").textContent=title;$("#dlgSub").textContent=sub;$("#dlgYes").textContent="등록";const form=$("#dlgForm");form.innerHTML=fieldsHTML;const msg=$("#dlgMsg");msg.style.display="none";bg.classList.add("on");
+function openDlg(title,sub,fieldsHTML,onSubmit){const bg=$("#dlgBg");$("#dlgTitle").textContent=title;$("#dlgSub").textContent=sub;$("#dlgYes").textContent="등록";dlgDrag(bg.querySelector(".modal"));const form=$("#dlgForm");form.innerHTML=fieldsHTML;const msg=$("#dlgMsg");msg.style.display="none";bg.classList.add("on");
   const close=()=>bg.classList.remove("on");$("#dlgNo").onclick=close;$("#dlgYes").onclick=async()=>{if(!guard())return;const r=await onSubmit(form);if(r===true)close();else if(typeof r==="string"){msg.textContent="⚠ "+r;msg.style.display=""}};
   form.onkeydown=e=>{if(e.key==="Enter"&&e.target.tagName!=="TEXTAREA"){e.preventDefault();$("#dlgYes").click()}};setTimeout(()=>form.querySelector("input[name=qty_in]")?.focus(),50)}
 
