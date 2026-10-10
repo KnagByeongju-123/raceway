@@ -149,21 +149,21 @@ table.g th.hr{background:#5c6675}
 table.g td input.cell{width:80px;height:26px;border:1px solid var(--line);border-radius:4px;text-align:right;padding:0 6px}
 /* 물류 보드 */
 table.board{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;white-space:nowrap;background:#fff}
-table.board th{position:sticky;top:0;z-index:2;padding:6px 8px;text-align:center;color:#fff;font-weight:600;border-right:1px solid rgba(255,255,255,.15)}
+table.board th{position:sticky;top:0;z-index:2;height:30px;padding:0 8px;line-height:30px;text-align:center;color:#fff;font-weight:600;border-right:1px solid rgba(255,255,255,.15);box-sizing:border-box}
 table.board th.g0{background:#2f3d50}table.board th.g1{background:#8a6d1f}table.board th.g2{background:#5c6675}table.board th.g3{background:#1d7a55}table.board th.g4{background:#2f5496}table.board th.g5{background:#5a4632}table.board th.g6{background:#6d3f8e}table.board th.g7{background:#b5541c}table.board th.g8{background:#1f6f8b}table.board th.g9{background:#7a2e2e}
-table.board th.sub{top:31px;font-weight:500;font-size:12px;filter:brightness(1.15)}
-table.board td{padding:0;border-bottom:1px solid #edf0f4;border-right:1px solid #f1f3f6;text-align:right;vertical-align:middle}
-table.board td.lbl{text-align:left;padding:6px 8px;font-weight:600;background:#fff;position:sticky;left:0;z-index:1}
+table.board th.sub{top:30px;font-weight:500;font-size:12px;filter:brightness(1.15)}
+table.board td{height:30px;padding:0;line-height:30px;border-bottom:1px solid #edf0f4;border-right:1px solid #f1f3f6;text-align:right;vertical-align:middle;box-sizing:border-box}
+table.board td.lbl{text-align:left;padding:0 8px;font-weight:600;background:#fff;position:sticky;left:0;z-index:1}
 table.board tr.model td.lbl{background:#eef2f8;color:#1c2430}
 table.board tr.model td{background:#f6f8fb}
-table.board td.cell{cursor:context-menu;position:relative;padding:6px 22px 6px 8px;min-width:88px}
+table.board td.cell{cursor:context-menu;position:relative;padding:0 22px 0 8px;min-width:88px}
 table.board td.cell:hover{background:#fff5dd}
 table.board td.cell .dots{position:absolute;right:4px;top:50%;transform:translateY(-50%);color:#b0b8c4;font-size:14px;line-height:1;padding:0 3px;border-radius:3px}
 table.board td.cell:hover .dots{color:var(--ink);background:#f3d79a}
 table.board td.cell.zero{color:#b0b8c4}
 table.board td.cell.neg{color:var(--red);font-weight:600}
 table.board td.na{background:#fafafa;color:#d0d5dd;text-align:center}
-table.board td.ro{padding:6px 8px;min-width:72px;cursor:pointer;color:var(--ink-2)}table.board td.ro:hover{background:#eef4fb}table.board td.ro.zero{color:#b0b8c4}table.board td.ro.warn{color:var(--red);font-weight:600}table.board td.ro small{color:var(--ink-3);font-weight:400}
+table.board td.ro{padding:0 8px;min-width:72px;cursor:pointer;color:var(--ink-2)}table.board td.ro:hover{background:#eef4fb}table.board td.ro.zero{color:#b0b8c4}table.board td.ro.warn{color:var(--red);font-weight:600}table.board td.ro small{color:var(--ink-3);font-weight:400}
 .ctx{position:fixed;display:none;background:var(--white);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:5px;min-width:210px;z-index:600}
 .ctx.open{display:block}
 .ctx .hd{padding:5px 10px;font-size:11px;color:var(--ink-3);border-bottom:1px solid var(--line);margin-bottom:4px}
@@ -238,13 +238,14 @@ table.g tr.warn td.sticky{background:#fff0ee}
           <label><input type="checkbox" id="chkView"> 조회 전용 모드</label>
         </div>
       </div>
+      <button class="icon-btn" id="btnXlMove" title="기존 엑셀(재고상황 · 전공정이동표) 파일을 읽어 이 달 기록을 업데이트">📗 <span>엑셀 업데이트</span></button><input type="file" id="fileXlMove" accept=".xlsx,.xlsm,.xls" style="display:none">
     </div>
   </header>
   <section class="main">
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 2.5</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 2.6</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -1002,6 +1003,58 @@ function exportAll(){if(typeof XLSX==="undefined")return warn("엑셀 저장은 
 function normProc(s){s=String(s||"").replace(/\s/g,"");if(!s)return["",""];if(s.toUpperCase()==="PRESS")return[P.PRESS,""];if(s==="열처리")return[P.HEAT,HEAT_VENDOR];if(s.includes("표면"))return[P.SURF,SURF_VENDORS.find(v=>s.includes(v))||""];for(const p of[P.HOLD,P.WAIT,P.DONE,P.SHIP,P.SCRAP,P.ADJ])if(s===p)return[p,""];if(s==="사내")return[P.HOLD,""];return["",""]}
 function fillDefaults(p){const head=p.pn.split(" ")[0].slice(0,4);const temp={"1106":"215℃","1124":"215℃","1165":"215℃","1159":"215℃","1113":"235℃→265℃","1179":"235℃→265℃","1156":"235℃→265℃"}[head]||"";const pallet={"1106":16500,"1165":16500,"1124":16500,"1113":13200,"1179":13200,"1159":13200,"1156":9900}[head]||0;const box={"1106":4000,"1124":4000}[head]||3000;const ukg={"1106":0.123,"1113":0.169,"1124":0.121,"1165":0.123}[head]||0;const mat={"1106":["S55C",1,126],"1113":["S70C",1.3,132],"1124":["S55CM",1,120],"1156":["C67S",1.25,146],"1159":["S55CM",1,144],"1165":["S55CM",1,134],"1179":["S70C",1.25,137]}[head]||["",0,0];
   p.ht_temp||=temp;p.pallet_qty||=pallet;p.box_qty||=box;p.unit_kg||=ukg;p.mat_code||=head;p.mat_type||=mat[0];p.thick||=mat[1];p.width||=mat[2];p.sg||=7.85}
+/* ---------- 기존 엑셀(재고상황 · 전공정이동표) 가져오기 → 이 달 기록 업데이트 ---------- */
+/* 품번 시트: B1 "RACEWAY (1106) 공정 이동표 - 2026. 10월", B열 "공정" 줄마다 공정 블록(3단 × 10일), D/G/J… 입고·출고·재고.
+   입고 칸이 수식(=H5)이면 앞 공정에서 넘어온 연결 → 따로 세지 않음. 출고는 연결된 공정으로, 마지막 공정이면 검사대기로.
+   같은 달의 이전 엑셀 가져오기 기록(비고 '이관')은 지우고 다시 넣는다. ESG/SBC/직접 입력 기록은 그대로. */
+function xlCell(ws,r,c){return ws[XLSX.utils.encode_cell({r:r-1,c:c-1})]}
+function xlV(ws,r,c){const x=xlCell(ws,r,c);return x&&x.t!=="e"?x.v:undefined}  /* t:"e" = 엑셀 오류(#VALUE! 등) → 없는 값 취급 */
+function xlNum(ws,r,c){const v=xlV(ws,r,c);return typeof v==="number"&&isFinite(v)?v:0}
+function xlStr(ws,r,c){const v=xlV(ws,r,c);return v==null?"":String(v)}
+function xlPlainRef(ws,r,c){const x=xlCell(ws,r,c);if(!x||!x.f)return"";const f=String(x.f).replace(/\$/g,"").trim().toUpperCase();return/^[A-Z]{1,3}\d+$/.test(f)?f:""}
+function xlPn(name){const k=String(name).replace(/\s+/g,"").toUpperCase();let hit=DB.pns().find(pn=>pn.replace(/\s+/g,"").toUpperCase()===k);if(hit)return hit;const m=mapGet("map_xl");if(m[k])return m[k];return""}
+function xlProc(name){const n=String(name).replace(/[\s\/\r\n]/g,"");if(/PRESS/i.test(n))return[P.PRESS,""];if(n.includes("열처리"))return[P.HEAT,HEAT_VENDOR];if(n.includes("표면처리")){const v=n.replace("표면처리","");return[P.SURF,v&&SURF_VENDORS.includes(v)?v:(SURF_VENDORS.find(x=>n.includes(x))||"")]}return["",""]}
+function parseMoveSheet(ws,sheetName){const title=xlStr(ws,1,2);if(!title.includes("공정 이동표"))return null;const ym=(()=>{const a=title.match(/(20\d{2})\D+(\d{1,2})\s*월/);return a?{y:+a[1],m:+a[2]}:null})();if(!ym)return{err:`${sheetName}: 연월을 못 읽음 (${title})`};
+  const pn=xlPn(sheetName);const range=XLSX.utils.decode_range(ws["!ref"]||"A1");const lastR=range.e.r+1;const nd=new Date(ym.y,ym.m,0).getDate();const ymS=`${ym.y}-${String(ym.m).padStart(2,"0")}`;
+  const blocks=[];for(let r=1;r<=lastR;r++)if(xlStr(ws,r,2).trim()==="공정"){const nm=xlStr(ws,r+1,2);const[proc,vendor]=xlProc(nm);blocks.push({r,nm:nm.replace(/[\s\/\r\n]/g,""),proc,vendor})}
+  if(!blocks.length)return{err:`${sheetName}: 공정 블록 없음`};
+  const link={};blocks.forEach((b,bi)=>{for(let t=0;t<3;t++)for(const dr of[2,3])for(let kk=0;kk<=(t===2?10:9);kk++){const ref=xlPlainRef(ws,b.r+4*t+dr,4+3*kk);if(ref)link[ref]=bi}});
+  const rows=[],calc={};const add=(day,prod,from,to,qty,vendor,memo)=>rows.push({date:`${ymS}-${String(day).padStart(2,"0")}`,prod,from,to,qty,vendor:vendor||"",memo:memo||`이관 ${ymS}`});
+  const key=(bi,prod)=>bi+"|"+prod;const bump=(bi,prod,q)=>{calc[key(bi,prod)]=(calc[key(bi,prod)]||0)+q};
+  blocks.forEach((b,bi)=>{if(!b.proc)return;for(let t=0;t<3;t++)for(const[k,prod]of[[1,"INNER"],[2,"OUTER"]]){const r=b.r+4*t+1+k;for(let kk=0;kk<=(t===2?10:9);kk++){const c=4+3*kk;const dv=xlNum(ws,b.r+4*t,c);const day=dv>=1&&dv<=31?dv:t*10+kk+1;if(day>nd)continue;
+      const inCell=xlCell(ws,r,c);if(inCell&&!inCell.f&&inCell.t!=="e"&&typeof inCell.v==="number"&&inCell.v){add(day,prod,"",b.proc,inCell.v,b.vendor);bump(bi,prod,inCell.v)}
+      const q=xlNum(ws,r,c+1);if(q){const addr=XLSX.utils.encode_cell({r:r-1,c:c});const di=link[addr];let to,tv="";if(di!=null&&blocks[di].proc){to=blocks[di].proc;tv=blocks[di].vendor;bump(di,prod,q)}else if(bi===blocks.length-1){to=P.WAIT;calc["W|"+prod]=(calc["W|"+prod]||0)+q}else{to=P.ADJ}
+        add(day,prod,b.proc,to,q,b.vendor||tv,`이관 ${ymS}`+(to===P.ADJ?" (원본에 다음공정 연결 없음)":""));bump(bi,prod,-q)}}}});
+  /* 하단 검사대기 · 포장완료 수량 */
+  let wait={INNER:0,OUTER:0},dO={INNER:0,OUTER:0},dX={INNER:0,OUTER:0};for(let r=1;r<=lastR;r++){const b=xlStr(ws,r,2);if(b.includes("검사")&&b.includes("대기")){wait.INNER=xlNum(ws,r,6);wait.OUTER=xlNum(ws,r,9)}const ag=xlStr(ws,r,33).toUpperCase();if(ag.includes("표면")){const tg=ag.includes("X")?dX:dO;tg.INNER+=xlNum(ws,r,35);tg.OUTER+=xlNum(ws,r,37)}}
+  const endStock=[];blocks.forEach((b,bi)=>{if(!b.proc)return;for(const[k,prod]of[[1,"INNER"],[2,"OUTER"]]){const r=b.r+9+k;const x36=xlCell(ws,r,36),x33=xlCell(ws,r,33);const cell=x36&&x36.v!=null?x36:x33;const v=cell&&cell.t!=="e"?cell.v:(cell?NaN:0);endStock.push({proc:b.proc,vendor:b.vendor,nm:b.nm,prod,excel:typeof v==="number"&&!isNaN(v)?v:null,calc:calc[key(bi,prod)]||0})}});
+  return{sheet:sheetName,pn,ym:ymS,nd,title,rows,blocks:blocks.map(b=>b.nm),wait,doneO:dO,doneX:dX,endStock,calcWait:{INNER:calc["W|INNER"]||0,OUTER:calc["W|OUTER"]||0}}}
+function parseSurvey(wb){const name=wb.SheetNames.find(n=>n.startsWith("재고조사"));if(!name)return{};const ws=wb.Sheets[name];const out={};let cur="";for(let r=6;r<=80;r++){const a=xlStr(ws,r,1).trim();if(a)cur=a;const b=xlStr(ws,r,2).trim().toUpperCase();if(cur&&(b==="INNER"||b==="OUTER")){(out[cur]??={});out[cur][b]=xlNum(ws,r,12);if(b==="INNER")out[cur].surface=xlStr(ws,r,3).trim()}}return out}
+async function importMoveXl(file){if(typeof XLSX==="undefined")return warn("인터넷 연결이 필요합니다 (xlsx 라이브러리)");let wb;try{wb=XLSX.read(await file.arrayBuffer(),{cellFormula:true})}catch(e){return warn("엑셀을 못 읽었습니다: "+e.message)}
+  const sheets=[],errs=[];for(const n of wb.SheetNames){const r=parseMoveSheet(wb.Sheets[n],n);if(!r)continue;if(r.err){errs.push(r.err);continue}sheets.push(r)}
+  if(!sheets.length)return warn("'공정 이동표' 품번 시트가 없는 파일입니다"+(errs.length?" ("+errs[0]+")":""));
+  const survey=parseSurvey(wb);const sv=pn=>{const k=pn.replace(/\s+/g,"").toUpperCase();for(const[a,v]of Object.entries(survey)){const ak=a.replace(/[\s\/]/g,"").toUpperCase();if(ak===k)return v}for(const[a,v]of Object.entries(survey)){const ak=a.replace(/[\s\/]/g,"").toUpperCase();if(ak.startsWith(k)&&ak.length-k.length<=2&&!/\d/.test(ak.slice(k.length,k.length+1)))return v}return null};
+  const months=[...new Set(sheets.map(x=>x.ym))];
+  const render=()=>{const unmapped=sheets.filter(x=>!x.pn);
+    const chk=[];for(const sh of sheets){if(!sh.pn)continue;for(const e of sh.endStock){chk.push({pn:sh.pn,proc:e.proc+(e.vendor?" "+e.vendor:""),prod:e.prod,excel:e.excel,calc:e.calc})}}
+    const bad=chk.filter(x=>x.excel===null||Math.round(x.excel)!==Math.round(x.calc));
+    $("#dlgForm").innerHTML=`<div class="full note"><b>${esc(file.name)}</b> · 품번 시트 ${sheets.length}개 · ${months.join(", ")}${errs.length?` · 못 읽은 시트 ${errs.length}`:""}<br>같은 달의 이전 엑셀 가져오기 기록(비고 '이관')은 지우고 다시 넣습니다. ESG · SBC · 직접 입력한 기록은 그대로 둡니다.</div>`+
+      (unmapped.length?`<div class="full note" style="color:var(--red)">품번을 못 찾은 시트 ${unmapped.length}개 → 기준의 품번을 골라 주세요 (매핑은 저장됨)</div>`+unmapped.map(sh=>`<label>${esc(sh.sheet)}</label><select data-xlpn="${esc(sh.sheet)}"><option value="">(건너뜀)</option>${opt(DB.pns())}</select>`).join(""):"")+
+      `<label></label><span class="chk"><input type="checkbox" name="snap" checked> 검사대기 · 검사완료(포장) 수량을 엑셀 하단 숫자와 맞춤</span><label></label><span class="chk"><input type="checkbox" name="safe" checked> 재고조사 시트의 안전재고 · 표면처리 유/무를 기준에 반영</span>`+
+      `<div class="full note" style="margin-top:6px">점검: 엑셀 말일재고 vs 가져온 결과 (빨강 = 다름. 원본 수식 안의 숨은 숫자(+400 등)나 지워진 수식이 원인) — 다른 줄 ${bad.length}개</div>`+dlgTable([{h:"품번",cls:"c"},{h:"공정",cls:"c"},{h:"제품",cls:"c"},{h:"엑셀 말일재고"},{h:"가져온 결과"},{h:"차이"}],chk.map(x=>({cls:x.excel===null?"warn":Math.round(x.excel)!==Math.round(x.calc)?"warn":"",v:[esc(x.pn),esc(x.proc),x.prod,x.excel===null?"오류(원본)":fmt(x.excel),fmt(x.calc),x.excel===null?"확인":fmt(x.calc-x.excel)]})));
+    $("#dlgForm").querySelectorAll("select[data-xlpn]").forEach(sl=>sl.onchange=()=>{const sh=sheets.find(x=>x.sheet===sl.dataset.xlpn);if(!sh||!sl.value)return;sh.pn=sl.value;mapSet("map_xl",sh.sheet.replace(/\s+/g,"").toUpperCase(),sl.value);render()})};
+  openDlg("기존 엑셀 가져오기 · 업데이트","재고상황(전공정이동표) 품번 시트 → 이 달 공정 이동 기록","",async form=>{const use=sheets.filter(x=>x.pn);if(!use.length)return"가져올 품번 시트가 없습니다";const snap=form.snap.checked,safe=form.safe.checked;
+    const n=use.reduce((a,x)=>a+x.rows.length,0);if(!await confirmBox(`${use.length}개 품번, ${months.join(", ")} 기록 ${n}줄을 가져올까요?\n이 달의 이전 '이관' 기록은 지워지고 다시 들어갑니다.`))return null;if(!await adminCheck("엑셀 가져오기"))return null;
+    const pns=new Set();for(const sh of use){pns.add(sh.pn);pns.add(DB.modelOf(sh.pn))}const before=DB.d.moves.length;
+    DB.d.moves=DB.d.moves.filter(m=>!(pns.has(m.pn)&&months.includes(m.date.slice(0,7))&&/^이관/.test(m.memo||"")));const removed=before-DB.d.moves.length;
+    for(const sh of use){const pn=sh.pn;for(const r of sh.rows)DB.addMove({date:r.date,pn,prod:r.prod,from:r.from,to:r.to,qty:r.qty,vendor:r.vendor,kind:"가져오기",memo:r.memo});
+      if(snap){const p=DB.part(pn);const surf=p&&p.surface==="유";const done=surf&&(sh.doneO.INNER+sh.doneO.OUTER)?sh.doneO:(!surf&&(sh.doneX.INNER+sh.doneX.OUTER)?sh.doneX:{INNER:sh.doneO.INNER+sh.doneX.INNER,OUTER:sh.doneO.OUTER+sh.doneX.OUTER});
+        const cur=today().slice(0,7)===sh.ym?today():`${sh.ym}-${String(sh.nd).padStart(2,"0")}`;const memo=`이관 ${sh.ym} 수량 맞춤`;
+        for(const prod of PRODS){let calcDone=0;let dW=sh.wait[prod]-sh.calcWait[prod];if(dW>0)DB.addMove({date:cur,pn,prod,to:P.WAIT,qty:dW,kind:"가져오기",memo:memo+" (검사대기)"});else if(dW<0){DB.addMove({date:cur,pn,prod,from:P.WAIT,to:P.DONE,qty:-dW,kind:"가져오기",memo:memo+" (검사대기)"});calcDone+=-dW}
+          const dD=done[prod]-calcDone;if(dD>0)DB.addMove({date:cur,pn,prod,to:P.DONE,qty:dD,kind:"가져오기",memo:memo+" (검사완료)"});else if(dD<0)DB.addMove({date:cur,pn,prod,from:P.DONE,to:P.SHIP,qty:-dD,kind:"가져오기",memo:memo+" (검사완료)"})}}
+      if(safe){const v=sv(pn);const p=DB.part(pn);if(v&&p){if(v.INNER)p.safe_in=v.INNER;if(v.OUTER)p.safe_out=v.OUTER;if(v.surface==="유"||v.surface==="무")p.surface=v.surface}}}
+    DB.migrateMoves();changed();rebuildPnLists();if(SCREENS.board?.el)SCREENS.board.refresh();toast(`엑셀 가져오기: ${use.length}개 품번 · 지움 ${removed}줄 · 추가 ${DB.d.moves.length-(before-removed)}줄`);return true});
+  $("#dlgYes").textContent="가져오기";render()}
 async function importXl(file){if(typeof XLSX==="undefined")return warn("인터넷 연결이 필요합니다 (xlsx 라이브러리)");const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{cellDates:true});if(!wb.Sheets["기준"]||!wb.Sheets["입력"])return warn("'기준'과 '입력' 시트가 있는 파일이어야 합니다");
   if(!await confirmBox("엑셀의 기준·입력 시트를 지금 데이터에 추가합니다.\n같은 파일을 두 번 넣으면 두 번 잡힙니다. 계속할까요?"))return;
   const base=XLSX.utils.sheet_to_json(wb.Sheets["기준"],{header:1});let np=0;for(let i=1;i<base.length;i++){const r=base[i];if(!r||r[0]==null)continue;const pn=String(r[0]).trim();const surface=String(r[1]||"").trim()==="유"?"유":"무";const route=String(r[2]||"");let p=DB.part(pn);if(p){p.surface=surface;p.safe_in=+r[3]||0;p.safe_out=+r[4]||0}else{p={pn,model:"",surface,ht_temp:"",surf_vendor:SURF_VENDORS.find(v=>route.includes(v))||SURF_VENDORS[0],pallet_qty:0,box_qty:0,safe_in:+r[3]||0,safe_out:+r[4]||0,unit_kg:0,sort:i,memo:"",mat_code:"",mat_type:"",thick:0,width:0,pitch:0,sg:7.85};DB.d.parts.push(p)}fillDefaults(p);np++}
@@ -1089,6 +1142,7 @@ document.addEventListener("click",e=>{if(!e.target.closest(".dd"))document.query
 $("#btnExportJson").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(DB.d)],{type:"application/json"}));a.download=`raceway_backup_${today()}.json`;a.click();toast("백업 파일 저장")};
 $("#fileImportJson").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!d.parts||!d.moves)throw 0;if(await confirmBox(`백업 파일(품번 ${d.parts.length}, 기록 ${d.moves.length}건)로 지금 데이터를 바꿉니다. 계속할까요?`)){DB.d=d;for(const t of Object.keys(SEED))DB.d[t]??=[];changed();rebuildPnLists();openScreen("home");toast(SB_ON?"백업 내용을 서버에 반영하는 중…":"불러오기 완료")}}catch(err){warn("백업 파일이 아닙니다")}e.target.value=""};
 $("#fileImportXl").onchange=async e=>{const f=e.target.files[0];if(f&&guard())await importXl(f);e.target.value=""};
+$("#btnXlMove").onclick=()=>{if(guard())$("#fileXlMove").click()};$("#fileXlMove").onchange=async e=>{const f=e.target.files[0];if(f)await importMoveXl(f);e.target.value=""};
 $("#btnExportXl").onclick=exportAll;
 $("#btnReset").onclick=async()=>{if(SB_ON){if(!guard())return;if(!await confirmBox("⚠ 서버(Supabase)의 RACEWAY 데이터를 전부 지우고 엑셀 원본(2026-10-08)으로 되돌립니다.\n모든 PC에 영향을 줍니다. 정말 할까요?"))return;if(!await confirmBox("한 번 더 확인합니다. 서버 데이터 전체 삭제 → 엑셀 원본 올리기. 진행할까요?"))return;try{await SB.wipe();await SB.seedIfEmptyForce();openScreen("home")}catch(e){toast("⚠ 실패: "+e.message)}return}
   if(await confirmBox("브라우저에 저장된 변경분을 지우고 엑셀 원본(2026-10-08) 데이터로 되돌립니다. 계속할까요?")){DB.reset();rebuildPnLists();changed();openScreen("home");toast("초기화 완료")}};
