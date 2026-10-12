@@ -251,7 +251,7 @@ table.g tr.warn td.sticky{background:#fff0ee}
     <div class="tabs"><div class="tabs-scroll" id="tabs"></div><div class="tabs-act"><button id="tabCloseAll" title="모두 닫기">×</button></div></div>
     <div class="crumb" id="crumb"></div>
     <div class="stage" id="stage"></div>
-    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 8.4</span><span class="r" id="now"></span></div>
+    <div class="status"><span><span class="dot"></span><span id="statusMsg">준비</span></span><span id="verTxt">RACEWAY 재고관리 web 8.5</span><span class="r" id="now"></span></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -639,7 +639,8 @@ function renderBoard(){const st=DB.stock();const heat=DB.stockVendor(P.HEAT),sur
         h+=orderLine(plans[p.pn],pr,rkeys,p.pn);if(!i)h+=`<td class="na" rowspan="2"></td>`;h+=`</tr>`})}}
   h+="</tbody></table>";const w=$("#boardWrap");w.innerHTML=h;
   w.querySelectorAll("td.cell:not(.off)").forEach(td=>{td.oncontextmenu=e=>{e.preventDefault();boardMenu(e,td)};td.querySelector(".dots").onclick=e=>{e.stopPropagation();boardMenu(e,td)}});
-  w.querySelectorAll("td.ro").forEach(td=>td.onclick=()=>boardPop(td.dataset.pop,{pn:td.dataset.pn}));
+  w.querySelectorAll("td.ro:not(.ord)").forEach(td=>td.onclick=()=>boardPop(td.dataset.pop,{pn:td.dataset.pn}));
+  w.querySelectorAll("td.ord").forEach(td=>{td.oncontextmenu=e=>{e.preventDefault();boardPop("orderNew",{pn:td.dataset.pn})};td.style.cursor="context-menu"});
   w.querySelectorAll("button[data-mv]").forEach(b=>b.onclick=e=>{e.stopPropagation();boardMove(b.dataset.kind,b.dataset.key,b.dataset.mv)});
   w.querySelectorAll("button[data-close]").forEach(b=>b.onclick=async e=>{e.stopPropagation();if(!guard())return;const k=b.dataset.close;const os=DB.d.orders.filter(o=>roundKey(o)===k);const rem=os.reduce((a,o)=>a+Math.max(0,o.qty-DB.shipped(o.id)),0);if(!await confirmBox(`${roundLabel(k)} 를 종료할까요?\n주문 ${os.length}건 · 미출하 잔량 ${fmt(rem)} set 은 포기(완료 취급)되고 보드에서 숨겨집니다.\n[완료 차수 보기]에서 다시 열 수 있습니다.`))return;if(!await adminCheck("차수 종료"))return;setRoundClosed(k,true);toast(`${roundLabel(k)} 종료`)});
   w.querySelectorAll("button[data-reopen]").forEach(b=>b.onclick=async e=>{e.stopPropagation();if(!guard())return;const k=b.dataset.reopen;if(!await confirmBox(`${roundLabel(k)} 종료를 취소하고 다시 열까요?`))return;setRoundClosed(k,false);toast(`${roundLabel(k)} 재개`)});
